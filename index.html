@@ -1,0 +1,147 @@
+﻿<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>Akıllı Tahta Unplugged Kodlama</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo">KT</div>
+        <div class="title">
+          <div class="name">Akıllı Tahta Kodlama</div>
+          <div class="subtitle">Okul Öncesi ve İlkokul için bilgisayarsız kodlama</div>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button id="fullscreenBtn" class="btn ghost">Tam Ekran</button>
+        <button id="helpBtn" class="btn">Kısa Rehber</button>
+      </div>
+    </header>
+
+    <main class="grid">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Öğretmen Paneli</h2>
+          <div class="toggle">
+            <span>Seviye</span>
+            <button class="chip" data-mode="okon">Okul Öncesi</button>
+            <button class="chip" data-mode="ilk">İlkokul</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="card">
+            <div class="card-title">Etkinlik Seç</div>
+            <div id="levelList" class="level-list"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">QR / Bağlantı</div>
+            <div class="hint" id="baseUrlText"></div>
+            <div class="link-row">
+              <input id="shareUrl" type="text" readonly />
+              <button id="copyBtn" class="btn small">Kopyala</button>
+            </div>
+            <div class="hint">Link seçili etkinliğe gider. QR için link yeterlidir.</div>
+          </div>
+          <div class="card">
+            <div class="card-title">Ders Modu</div>
+            <div class="row">
+              <button id="startBtn" class="btn">Başlat</button>
+              <button id="resetBtn" class="btn ghost">Sıfırla</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="work">
+        <div class="work-head">
+          <div>
+            <div class="work-title" id="levelTitle">Etkinlik Seçilmedi</div>
+            <div class="work-sub" id="levelGoal">Lütfen bir etkinlik seçin.</div>
+          </div>
+          <div class="work-actions">
+            <button id="hintBtn" class="btn ghost">İpucu</button>
+            <button id="solutionBtn" class="btn ghost">Çözüm</button>
+          </div>
+        </div>
+
+        <div class="workspace">
+          <div class="cards">
+            <div class="section-title">Kartlar</div>
+            <div id="cardTray" class="card-tray"></div>
+          </div>
+
+          <div class="program">
+            <div class="section-title">Kod Alanı</div>
+            <ol id="programSlots" class="slots"></ol>
+            <div class="runbar">
+              <button id="stepBtn" class="btn">Adım</button>
+              <button id="runBtn" class="btn">Çalıştır</button>
+              <label class="speed">
+                Hız
+                <input id="speed" type="range" min="1" max="5" value="3" />
+              </label>
+            </div>
+          </div>
+
+          <div class="scene">
+            <div class="section-title">Oyun Sahnesi</div>
+            <canvas id="scene" width="420" height="420"></canvas>
+            <div id="status" class="status">Hazır</div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <section class="docs">
+      <h3>Teknolojik Tasarım Özeti</h3>
+      <div class="doc-grid">
+        <div class="doc">
+          <div class="doc-title">Mimari</div>
+          <div class="mono">
+            QR / Link → Akıllı Tahta Tarayıcı → Web Uygulaması
+            → Kart Editörü + Etkinlik Motoru → Geri Bildirim
+          </div>
+        </div>
+        <div class="doc">
+          <div class="doc-title">Ders Akışı</div>
+          <div class="mono">
+            Seç → Kartları Diz → Çalıştır → Hata Ayıkla → Başarı
+          </div>
+        </div>
+        <div class="doc">
+          <div class="doc-title">Hedef Kitle</div>
+          <div class="mono">
+            Okul Öncesi: sıralama, yön, tekrar
+            İlkokul: döngü, koşul, komut grupları
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <dialog id="help">
+    <h3>Kısa Rehber</h3>
+    <ul>
+      <li>Etkinlik seçin, kartları kod alanına dokunarak ekleyin.</li>
+      <li>Okul öncesinde kartlar tek dokunuşla eklenir.</li>
+      <li>İlkokul modunda tekrar ve koşul kartları açılır.</li>
+    </ul>
+    <button class="btn" id="closeHelp">Kapat</button>
+  </dialog>
+
+  <script src="app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js');
+      });
+    }
+  </script>
+</body>
+</html>
