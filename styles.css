@@ -163,6 +163,24 @@ body {
 
 .hint { font-size: 0.8rem; color: var(--muted); }
 
+.qr-wrap {
+  display: grid;
+  place-items: center;
+  margin: 8px 0 10px;
+  background: #0f172a;
+  border: 1px dashed #334155;
+  border-radius: 12px;
+  padding: 8px;
+}
+
+#qrImage {
+  width: 160px;
+  height: 160px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #0b1120;
+}
+
 .row { display: flex; gap: 8px; }
 
 .work { padding: 16px; }
@@ -221,6 +239,7 @@ body {
 }
 
 .slot.filled { border-style: solid; color: var(--text); }
+.slot.active { border-color: #38bdf8; box-shadow: 0 0 0 2px rgba(56,189,248,0.2); }
 
 .slot .remove { color: #f87171; cursor: pointer; font-weight: 700; }
 

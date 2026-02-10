@@ -42,6 +42,9 @@
           <div class="card">
             <div class="card-title">QR / Bağlantı</div>
             <div class="hint" id="baseUrlText"></div>
+            <div class="qr-wrap">
+              <img id="qrImage" alt="QR" />
+            </div>
             <div class="link-row">
               <input id="shareUrl" type="text" readonly />
               <button id="copyBtn" class="btn small">Kopyala</button>
@@ -98,31 +101,6 @@
       </section>
     </main>
 
-    <section class="docs">
-      <h3>Teknolojik Tasarım Özeti</h3>
-      <div class="doc-grid">
-        <div class="doc">
-          <div class="doc-title">Mimari</div>
-          <div class="mono">
-            QR / Link → Akıllı Tahta Tarayıcı → Web Uygulaması
-            → Kart Editörü + Etkinlik Motoru → Geri Bildirim
-          </div>
-        </div>
-        <div class="doc">
-          <div class="doc-title">Ders Akışı</div>
-          <div class="mono">
-            Seç → Kartları Diz → Çalıştır → Hata Ayıkla → Başarı
-          </div>
-        </div>
-        <div class="doc">
-          <div class="doc-title">Hedef Kitle</div>
-          <div class="mono">
-            Okul Öncesi: sıralama, yön, tekrar
-            İlkokul: döngü, koşul, komut grupları
-          </div>
-        </div>
-      </div>
-    </section>
   </div>
 
   <dialog id="help">
@@ -131,6 +109,7 @@
       <li>Etkinlik seçin, kartları kod alanına dokunarak ekleyin.</li>
       <li>Okul öncesinde kartlar tek dokunuşla eklenir.</li>
       <li>İlkokul modunda tekrar ve koşul kartları açılır.</li>
+      <li>Tekrar kartı, bir önceki komutu bir kez daha çalıştırır.</li>
     </ul>
     <button class="btn" id="closeHelp">Kapat</button>
   </dialog>

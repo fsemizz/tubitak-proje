@@ -65,7 +65,7 @@ const cardDefs = {
   ileri: { label: "İleri ▷", icon: "▷" },
   sag: { label: "Sağa ↷", icon: "↷" },
   sol: { label: "Sola ↶", icon: "↶" },
-  tekrar: { label: "Tekrar ⟲", icon: "⟲" },
+  tekrar: { label: "Tekrar (son) ⟲", icon: "⟲" },
   eger: { label: "Eğer ?", icon: "?" }
 };
 
@@ -87,6 +87,7 @@ const dom = {
   status: document.getElementById("status"),
   shareUrl: document.getElementById("shareUrl"),
   baseUrlText: document.getElementById("baseUrlText"),
+  qrImage: document.getElementById("qrImage"),
   scene: document.getElementById("scene"),
   hintBtn: document.getElementById("hintBtn"),
   solutionBtn: document.getElementById("solutionBtn"),
@@ -155,7 +156,7 @@ function selectLevel(lvl) {
   resetGrid();
   dom.levelTitle.textContent = `${lvl.id} • ${lvl.title}`;
   dom.levelGoal.textContent = lvl.goal;
-  dom.status.textContent = "Hazır";
+  dom.status.textContent = `Hazır (Yön: ${dirName()})`;
   renderCards();
   renderSlots();
   drawScene();
@@ -195,6 +196,7 @@ function renderSlots() {
     } else {
       slot.textContent = `${i + 1}) Kart ekle`;
     }
+    if (i === state.stepIndex && state.running) slot.classList.add("active");
     dom.slots.appendChild(slot);
   }
   dom.slots.querySelectorAll(".remove").forEach((btn) => {
@@ -230,7 +232,7 @@ function resetLevel() {
   state.stepIndex = 0;
   state.dir = 0;
   resetGrid();
-  dom.status.textContent = "Hazır";
+  dom.status.textContent = `Hazır (Yön: ${dirName()})`;
   drawScene();
 }
 
@@ -240,6 +242,14 @@ function runProgram(auto) {
     dom.status.textContent = "Önce kartları ekleyin.";
     return;
   }
+  if (!auto && state.stepIndex >= state.program.length) {
+    state.stepIndex = 0;
+    resetGrid();
+  }
+  if (auto) {
+    state.stepIndex = 0;
+    resetGrid();
+  }
   state.running = true;
   const speed = 900 / Number(dom.speed.value);
 
@@ -247,14 +257,20 @@ function runProgram(auto) {
     if (state.stepIndex >= state.program.length) {
       state.running = false;
       dom.status.textContent = checkSuccess() ? "Başarılı!" : "Tekrar dene.";
+      renderSlots();
       return;
     }
-    executeCommand(state.program[state.stepIndex]);
+    const currentCmd = state.program[state.stepIndex];
+    executeCommand(currentCmd);
+    dom.status.textContent = `Adım ${state.stepIndex + 1}/${state.program.length}: ${cardDefs[currentCmd].label} • Yön: ${dirName()}`;
     state.stepIndex++;
     drawScene();
+    renderSlots();
     if (!auto) {
       state.running = false;
-      dom.status.textContent = `Adım ${state.stepIndex}`;
+      if (state.stepIndex >= state.program.length) {
+        dom.status.textContent = checkSuccess() ? "Başarılı!" : "Tekrar dene.";
+      }
       return;
     }
     setTimeout(step, speed);
@@ -265,10 +281,18 @@ function runProgram(auto) {
 
 function executeCommand(cmd) {
   if (!state.level) return;
+  if (cmd === "tekrar") {
+    const prev = state.program[state.stepIndex - 1];
+    if (prev && prev !== "tekrar") executeSingle(prev);
+    return;
+  }
+  executeSingle(cmd);
+}
+
+function executeSingle(cmd) {
   if (cmd === "sag") state.dir = (state.dir + 1) % 4;
   if (cmd === "sol") state.dir = (state.dir + 3) % 4;
   if (cmd === "ileri") moveForward();
-  if (cmd === "tekrar") moveForward();
   if (cmd === "eger") {
     const next = peekForward();
     if (next === "#") state.dir = (state.dir + 1) % 4;
@@ -346,8 +370,7 @@ function drawScene() {
       }
       drawTarget(x, y, size);
       if (cell === "R") {
-        ctx.fillStyle = "#38bdf8";
-        ctx.fillRect(x * size + 8, y * size + 8, size - 16, size - 16);
+        drawRobot(x, y, size);
       }
     });
   });
@@ -358,11 +381,13 @@ function updateShareUrl() {
   const url = new URL(window.location.href);
   url.searchParams.set("e", state.level.id);
   dom.shareUrl.value = url.toString();
+  updateQr(url.toString());
 }
 
 function setBaseUrlText() {
   const base = "https://fsemizz.github.io/tubitak-proje/";
   dom.baseUrlText.textContent = `Base: ${base}`;
+  updateQr(base);
 }
 
 function copyLink() {
@@ -424,6 +449,48 @@ function drawTarget(x, y, size) {
   ctx.beginPath();
   ctx.arc(x * size + size / 2, y * size + size / 2, size / 3, 0, Math.PI * 2);
   ctx.fill();
+}
+
+function drawRobot(x, y, size) {
+  ctx.fillStyle = "#38bdf8";
+  ctx.fillRect(x * size + 8, y * size + 8, size - 16, size - 16);
+  ctx.fillStyle = "#0b1120";
+  ctx.beginPath();
+  const cx = x * size + size / 2;
+  const cy = y * size + size / 2;
+  const r = size / 4;
+  if (state.dir === 0) {
+    ctx.moveTo(cx, cy - r);
+    ctx.lineTo(cx - r, cy + r);
+    ctx.lineTo(cx + r, cy + r);
+  } else if (state.dir === 1) {
+    ctx.moveTo(cx + r, cy);
+    ctx.lineTo(cx - r, cy - r);
+    ctx.lineTo(cx - r, cy + r);
+  } else if (state.dir === 2) {
+    ctx.moveTo(cx, cy + r);
+    ctx.lineTo(cx - r, cy - r);
+    ctx.lineTo(cx + r, cy - r);
+  } else {
+    ctx.moveTo(cx - r, cy);
+    ctx.lineTo(cx + r, cy - r);
+    ctx.lineTo(cx + r, cy + r);
+  }
+  ctx.closePath();
+  ctx.fill();
+}
+
+function updateQr(value) {
+  if (!dom.qrImage) return;
+  const encoded = encodeURIComponent(value);
+  dom.qrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encoded}`;
+}
+
+function dirName() {
+  if (state.dir === 0) return "Yukarı";
+  if (state.dir === 1) return "Sağa";
+  if (state.dir === 2) return "Aşağı";
+  return "Sola";
 }
 
 setBaseUrlText();
