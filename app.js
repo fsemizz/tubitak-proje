@@ -163,13 +163,34 @@ function updateGameHint() {
 
 function renderCards() {
   dom.cardTray.innerHTML = "";
-  modeConfig[state.mode].cards.forEach((cmd) => {
+  const cards = getAvailableCards();
+  if (!cards.length) {
+    const empty = document.createElement("div");
+    empty.className = "hint";
+    empty.textContent = "Kartlar yüklenemedi. Mod veya oyun seçimini kontrol edin.";
+    dom.cardTray.appendChild(empty);
+    return;
+  }
+  cards.forEach((cmd) => {
     const card = document.createElement("div");
     card.className = "cmd-card";
     card.textContent = `${cardDefs[cmd].icon} ${cardDefs[cmd].label}`;
     card.addEventListener("click", () => addCommand(cmd));
     dom.cardTray.appendChild(card);
   });
+}
+
+function getAvailableCards() {
+  if (state.game === "loop") {
+    const base = ["up", "right"];
+    if (state.mode === "m12") return [...base, "repeat2"];
+    if (state.mode === "m34") return [...base, "repeat2", "repeat3"];
+    return base;
+  }
+  if (state.game === "debug") {
+    return ["up", "down", "left", "right"];
+  }
+  return modeConfig[state.mode]?.cards || [];
 }
 
 function renderSlots() {
