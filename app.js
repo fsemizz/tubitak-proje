@@ -182,9 +182,8 @@ function renderCards() {
 
 function getAvailableCards() {
   if (state.game === "loop") {
-    const base = ["up", "right"];
-    if (state.mode === "m12") return [...base, "repeat2"];
-    if (state.mode === "m34") return [...base, "repeat2", "repeat3"];
+    const base = ["up", "right", "repeat2"];
+    if (state.mode === "m34") return [...base, "repeat3"];
     return base;
   }
   if (state.game === "debug") {
