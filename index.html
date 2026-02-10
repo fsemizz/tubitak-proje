@@ -29,15 +29,44 @@
         <div class="panel-head">
           <h2>Öğretmen Paneli</h2>
           <div class="toggle">
-            <span>Seviye</span>
-            <button class="chip" data-mode="okon">Okul Öncesi</button>
-            <button class="chip" data-mode="ilk">İlkokul</button>
+            <span>Mod</span>
+            <button class="chip" data-mode="m12">1-2. sınıf</button>
+            <button class="chip" data-mode="m34">3-4. sınıf</button>
+            <button class="chip" data-mode="m5p">5+ (deneysel)</button>
           </div>
         </div>
         <div class="panel-body">
           <div class="card">
-            <div class="card-title">Etkinlik Seç</div>
-            <div id="levelList" class="level-list"></div>
+            <div class="card-title">Senaryo Ayarları</div>
+            <div class="form-row">
+              <label>
+                Grid boyutu
+                <select id="gridSize">
+                  <option>3</option>
+                  <option>4</option>
+                  <option>5</option>
+                  <option selected>6</option>
+                  <option>7</option>
+                  <option>8</option>
+                  <option>9</option>
+                  <option>10</option>
+                  <option>12</option>
+                  <option>15</option>
+                </select>
+              </label>
+              <label>
+                Zorluk
+                <select id="difficulty">
+                  <option value="easy">Kolay</option>
+                  <option value="medium" selected>Orta</option>
+                  <option value="hard">Zor</option>
+                </select>
+              </label>
+            </div>
+            <div class="row">
+              <button id="newScenarioBtn" class="btn">Yeni Senaryo</button>
+              <button id="resetBtn" class="btn ghost">Sıfırla</button>
+            </div>
           </div>
           <div class="card">
             <div class="card-title">QR / Bağlantı</div>
@@ -49,13 +78,13 @@
               <input id="shareUrl" type="text" readonly />
               <button id="copyBtn" class="btn small">Kopyala</button>
             </div>
-            <div class="hint">Link seçili etkinliğe gider. QR için link yeterlidir.</div>
+            <div class="hint">Link seçili ayarları içerir.</div>
           </div>
           <div class="card">
             <div class="card-title">Ders Modu</div>
             <div class="row">
-              <button id="startBtn" class="btn">Başlat</button>
-              <button id="resetBtn" class="btn ghost">Sıfırla</button>
+              <button id="startBtn" class="btn">Çalıştır</button>
+              <button id="stepBtn" class="btn ghost">Adım</button>
             </div>
           </div>
         </div>
@@ -64,12 +93,12 @@
       <section class="work">
         <div class="work-head">
           <div>
-            <div class="work-title" id="levelTitle">Etkinlik Seçilmedi</div>
-            <div class="work-sub" id="levelGoal">Lütfen bir etkinlik seçin.</div>
+            <div class="work-title" id="levelTitle">Dinamik Senaryo</div>
+            <div class="work-sub" id="levelGoal">Hedefe en kısa yoldan ulaş.</div>
           </div>
           <div class="work-actions">
             <button id="hintBtn" class="btn ghost">İpucu</button>
-            <button id="solutionBtn" class="btn ghost">Çözüm</button>
+            <button id="solutionBtn" class="btn ghost">Öneri</button>
           </div>
         </div>
 
@@ -83,8 +112,6 @@
             <div class="section-title">Kod Alanı</div>
             <ol id="programSlots" class="slots"></ol>
             <div class="runbar">
-              <button id="stepBtn" class="btn">Adım</button>
-              <button id="runBtn" class="btn">Çalıştır</button>
               <label class="speed">
                 Hız
                 <input id="speed" type="range" min="1" max="5" value="3" />
@@ -96,20 +123,24 @@
             <div class="section-title">Oyun Sahnesi</div>
             <canvas id="scene" width="420" height="420"></canvas>
             <div id="status" class="status">Hazır</div>
+            <div class="score" id="score">Puan: 0</div>
           </div>
+        </div>
+
+        <div class="history">
+          <div class="section-title">Son Oynananlar</div>
+          <ul id="historyList" class="history-list"></ul>
         </div>
       </section>
     </main>
-
   </div>
 
   <dialog id="help">
     <h3>Kısa Rehber</h3>
     <ul>
-      <li>Etkinlik seçin, kartları kod alanına dokunarak ekleyin.</li>
-      <li>Okul öncesinde kartlar tek dokunuşla eklenir.</li>
-      <li>İlkokul modunda tekrar ve koşul kartları açılır.</li>
-      <li>Tekrar kartı, bir önceki komutu bir kez daha çalıştırır.</li>
+      <li>Kartlar: Yukarı, Aşağı, Sol, Sağ her biri 1 adım atar.</li>
+      <li>Çalıştır: tüm programı oynatır. Adım: tek komut çalıştırır.</li>
+      <li>Tekrar kartı, bir önceki komutu 2 veya 3 kez tekrarlar.</li>
     </ul>
     <button class="btn" id="closeHelp">Kapat</button>
   </dialog>

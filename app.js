@@ -1,119 +1,73 @@
-﻿const levels = {
-  okon: [
-    {
-      id: "OKN-01",
-      title: "Robot Elmaya Gitsin",
-      goal: "Robotu elmaya ulaştır.",
-      grid: [
-        ".....",
-        "..E..",
-        ".....",
-        "..R..",
-        "....."
-      ],
-      allowed: ["ileri", "sag", "sol"],
-      solution: ["ileri", "ileri", "ileri"]
-    },
-    {
-      id: "OKN-02",
-      title: "Yön Bulma",
-      goal: "Robotu yıldızın yanına getir.",
-      grid: [
-        "..*..",
-        ".....",
-        "..R..",
-        ".....",
-        "....."
-      ],
-      allowed: ["ileri", "sag", "sol"],
-      solution: ["ileri", "ileri"]
-    }
-  ],
-  ilk: [
-    {
-      id: "ILK-01",
-      title: "Engeli Geç",
-      goal: "Robotu hazineye ulaştır.",
-      grid: [
-        "..T..",
-        ".###.",
-        "..R..",
-        ".....",
-        "....."
-      ],
-      allowed: ["ileri", "sag", "sol", "tekrar"],
-      solution: ["tekrar", "ileri", "ileri", "ileri"]
-    },
-    {
-      id: "ILK-02",
-      title: "Koşullu Yol",
-      goal: "Engellerden kaç ve yıldızı al.",
-      grid: [
-        "..*..",
-        ".#.#.",
-        "..R..",
-        ".....",
-        "....."
-      ],
-      allowed: ["ileri", "sag", "sol", "tekrar", "eger"],
-      solution: ["ileri", "eger", "sag", "ileri"]
-    }
-  ]
+﻿const baseUrl = "https://fsemizz.github.io/tubitak-proje/";
+
+const modeConfig = {
+  m12: { label: "1-2", cards: ["up", "down", "left", "right"], slots: 6 },
+  m34: { label: "3-4", cards: ["up", "down", "left", "right", "repeat2"], slots: 8 },
+  m5p: { label: "5+", cards: ["up", "down", "left", "right", "repeat2", "repeat3"], slots: 10 }
 };
 
 const cardDefs = {
-  ileri: { label: "İleri ▷", icon: "▷" },
-  sag: { label: "Sağa ↷", icon: "↷" },
-  sol: { label: "Sola ↶", icon: "↶" },
-  tekrar: { label: "Tekrar (son) ⟲", icon: "⟲" },
-  eger: { label: "Eğer ?", icon: "?" }
+  up: { label: "Yukarı", icon: "↑" },
+  down: { label: "Aşağı", icon: "↓" },
+  left: { label: "Sol", icon: "←" },
+  right: { label: "Sağ", icon: "→" },
+  repeat2: { label: "Tekrar x2", icon: "⟲2" },
+  repeat3: { label: "Tekrar x3", icon: "⟲3" }
 };
 
 const state = {
-  mode: "okon",
-  level: null,
+  mode: "m12",
+  gridSize: 6,
+  difficulty: "medium",
   program: [],
-  running: false,
+  expandedProgram: [],
   stepIndex: 0,
-  dir: 0
+  running: false,
+  grid: [],
+  baseGrid: [],
+  start: null,
+  target: null,
+  history: []
 };
 
 const dom = {
-  levelList: document.getElementById("levelList"),
   cardTray: document.getElementById("cardTray"),
   slots: document.getElementById("programSlots"),
-  levelTitle: document.getElementById("levelTitle"),
-  levelGoal: document.getElementById("levelGoal"),
   status: document.getElementById("status"),
+  score: document.getElementById("score"),
+  scene: document.getElementById("scene"),
+  speed: document.getElementById("speed"),
+  startBtn: document.getElementById("startBtn"),
+  stepBtn: document.getElementById("stepBtn"),
+  resetBtn: document.getElementById("resetBtn"),
+  newScenarioBtn: document.getElementById("newScenarioBtn"),
+  gridSize: document.getElementById("gridSize"),
+  difficulty: document.getElementById("difficulty"),
   shareUrl: document.getElementById("shareUrl"),
   baseUrlText: document.getElementById("baseUrlText"),
   qrImage: document.getElementById("qrImage"),
-  scene: document.getElementById("scene"),
-  hintBtn: document.getElementById("hintBtn"),
-  solutionBtn: document.getElementById("solutionBtn"),
-  startBtn: document.getElementById("startBtn"),
-  resetBtn: document.getElementById("resetBtn"),
-  runBtn: document.getElementById("runBtn"),
-  stepBtn: document.getElementById("stepBtn"),
-  speed: document.getElementById("speed"),
   copyBtn: document.getElementById("copyBtn"),
   fullscreenBtn: document.getElementById("fullscreenBtn"),
   helpBtn: document.getElementById("helpBtn"),
   help: document.getElementById("help"),
-  closeHelp: document.getElementById("closeHelp")
+  closeHelp: document.getElementById("closeHelp"),
+  hintBtn: document.getElementById("hintBtn"),
+  solutionBtn: document.getElementById("solutionBtn"),
+  historyList: document.getElementById("historyList")
 };
 
 const ctx = dom.scene.getContext("2d");
 
 function init() {
-  bootstrapLevels();
   bindModeChips();
-  renderLevels();
   bindControls();
+  setBaseUrlText();
   loadFromUrl();
+  generateScenario();
   renderCards();
   renderSlots();
   drawScene();
+  updateShareUrl();
 }
 
 function bindModeChips() {
@@ -122,62 +76,50 @@ function bindModeChips() {
       state.mode = chip.dataset.mode;
       document.querySelectorAll(".chip").forEach((c) => c.classList.remove("active"));
       chip.classList.add("active");
-      renderLevels();
+      state.program = [];
+      renderCards();
+      renderSlots();
+      updateShareUrl();
     });
   });
-  document.querySelector(".chip[data-mode='okon']").classList.add("active");
+  document.querySelector(".chip[data-mode='m12']").classList.add("active");
 }
 
-function bootstrapLevels() {
-  Object.values(levels).flat().forEach((lvl) => {
-    if (!lvl.baseGrid) {
-      lvl.baseGrid = lvl.grid.slice();
-      lvl.targets = findTargets(lvl.baseGrid);
-    }
+function bindControls() {
+  dom.startBtn.addEventListener("click", () => runProgram(true));
+  dom.stepBtn.addEventListener("click", () => runProgram(false));
+  dom.resetBtn.addEventListener("click", resetRun);
+  dom.newScenarioBtn.addEventListener("click", () => {
+    generateScenario();
+    resetRun();
+    updateShareUrl();
   });
-}
-
-function renderLevels() {
-  dom.levelList.innerHTML = "";
-  levels[state.mode].forEach((lvl) => {
-    const el = document.createElement("div");
-    el.className = "level-item";
-    el.innerHTML = `<div><strong>${lvl.id}</strong> - ${lvl.title}</div><div>Seç</div>`;
-    el.addEventListener("click", () => selectLevel(lvl));
-    dom.levelList.appendChild(el);
+  dom.gridSize.addEventListener("change", () => {
+    state.gridSize = Number(dom.gridSize.value);
+    generateScenario();
+    resetRun();
+    updateShareUrl();
   });
-}
-
-function selectLevel(lvl) {
-  state.level = lvl;
-  state.program = [];
-  state.stepIndex = 0;
-  state.dir = 0;
-  resetGrid();
-  dom.levelTitle.textContent = `${lvl.id} • ${lvl.title}`;
-  dom.levelGoal.textContent = lvl.goal;
-  dom.status.textContent = `Hazır (Yön: ${dirName()})`;
-  renderCards();
-  renderSlots();
-  drawScene();
-  updateShareUrl();
-  highlightSelectedLevel();
-}
-
-function highlightSelectedLevel() {
-  document.querySelectorAll(".level-item").forEach((item) => {
-    item.classList.remove("active");
-    if (state.level && item.textContent.includes(state.level.id)) item.classList.add("active");
+  dom.difficulty.addEventListener("change", () => {
+    state.difficulty = dom.difficulty.value;
+    generateScenario();
+    resetRun();
+    updateShareUrl();
   });
+  dom.copyBtn.addEventListener("click", copyLink);
+  dom.fullscreenBtn.addEventListener("click", toggleFullscreen);
+  dom.helpBtn.addEventListener("click", () => dom.help.showModal());
+  dom.closeHelp.addEventListener("click", () => dom.help.close());
+  dom.hintBtn.addEventListener("click", showHint);
+  dom.solutionBtn.addEventListener("click", showSuggestion);
 }
 
 function renderCards() {
   dom.cardTray.innerHTML = "";
-  if (!state.level) return;
-  state.level.allowed.forEach((cmd) => {
+  modeConfig[state.mode].cards.forEach((cmd) => {
     const card = document.createElement("div");
-    card.className = `cmd-card ${state.mode}`;
-    card.textContent = cardDefs[cmd].label;
+    card.className = "cmd-card";
+    card.textContent = `${cardDefs[cmd].icon} ${cardDefs[cmd].label}`;
     card.addEventListener("click", () => addCommand(cmd));
     dom.cardTray.appendChild(card);
   });
@@ -185,7 +127,7 @@ function renderCards() {
 
 function renderSlots() {
   dom.slots.innerHTML = "";
-  const count = state.mode === "okon" ? 6 : 8;
+  const count = modeConfig[state.mode].slots;
   for (let i = 0; i < count; i++) {
     const slot = document.createElement("li");
     slot.className = "slot";
@@ -209,68 +151,157 @@ function renderSlots() {
 }
 
 function addCommand(cmd) {
-  const limit = state.mode === "okon" ? 6 : 8;
+  const limit = modeConfig[state.mode].slots;
   if (state.program.length >= limit) return;
   state.program.push(cmd);
   renderSlots();
 }
 
-function bindControls() {
-  dom.startBtn.addEventListener("click", () => runProgram(true));
-  dom.resetBtn.addEventListener("click", resetLevel);
-  dom.runBtn.addEventListener("click", () => runProgram(true));
-  dom.stepBtn.addEventListener("click", () => runProgram(false));
-  dom.hintBtn.addEventListener("click", () => showHint());
-  dom.solutionBtn.addEventListener("click", () => showSolution());
-  dom.copyBtn.addEventListener("click", copyLink);
-  dom.fullscreenBtn.addEventListener("click", toggleFullscreen);
-  dom.helpBtn.addEventListener("click", () => dom.help.showModal());
-  dom.closeHelp.addEventListener("click", () => dom.help.close());
+function generateScenario() {
+  const size = state.gridSize;
+  const attempts = 200;
+  for (let i = 0; i < attempts; i++) {
+    const grid = Array.from({ length: size }, () => Array(size).fill("."));
+    const start = { x: Math.floor(size / 2), y: Math.floor(size / 2) };
+    const target = randomCell(size, start);
+    grid[start.y][start.x] = "S";
+    grid[target.y][target.x] = "T";
+
+    const obstacleCount = Math.floor(size * size * obstacleRatio());
+    let placed = 0;
+    while (placed < obstacleCount) {
+      const pos = randomCell(size, start, target);
+      if (grid[pos.y][pos.x] === ".") {
+        grid[pos.y][pos.x] = "#";
+        placed++;
+      }
+    }
+
+    if (hasPath(grid, start, target)) {
+      state.grid = grid;
+      state.baseGrid = cloneGrid(grid);
+      state.start = start;
+      state.target = target;
+      return;
+    }
+  }
+  // fallback
+  state.grid = Array.from({ length: size }, () => Array(size).fill("."));
+  state.baseGrid = cloneGrid(state.grid);
+  state.start = { x: 0, y: 0 };
+  state.target = { x: size - 1, y: size - 1 };
+  state.grid[0][0] = "S";
+  state.grid[size - 1][size - 1] = "T";
+  state.baseGrid = cloneGrid(state.grid);
 }
 
-function resetLevel() {
+function obstacleRatio() {
+  if (state.difficulty === "easy") return 0.08;
+  if (state.difficulty === "hard") return 0.25;
+  return 0.16;
+}
+
+function randomCell(size, ...exclude) {
+  let x = 0;
+  let y = 0;
+  do {
+    x = Math.floor(Math.random() * size);
+    y = Math.floor(Math.random() * size);
+  } while (exclude.some((p) => p.x === x && p.y === y));
+  return { x, y };
+}
+
+function hasPath(grid, start, target) {
+  const size = grid.length;
+  const visited = Array.from({ length: size }, () => Array(size).fill(false));
+  const queue = [start];
+  visited[start.y][start.x] = true;
+  const dirs = [
+    { x: 0, y: -1 },
+    { x: 0, y: 1 },
+    { x: -1, y: 0 },
+    { x: 1, y: 0 }
+  ];
+  while (queue.length) {
+    const cur = queue.shift();
+    if (cur.x === target.x && cur.y === target.y) return true;
+    for (const d of dirs) {
+      const nx = cur.x + d.x;
+      const ny = cur.y + d.y;
+      if (nx < 0 || ny < 0 || nx >= size || ny >= size) continue;
+      if (visited[ny][nx]) continue;
+      if (grid[ny][nx] === "#") continue;
+      visited[ny][nx] = true;
+      queue.push({ x: nx, y: ny });
+    }
+  }
+  return false;
+}
+
+function resetRun() {
+  state.program = [];
+  state.expandedProgram = [];
   state.stepIndex = 0;
-  state.dir = 0;
-  resetGrid();
-  dom.status.textContent = `Hazır (Yön: ${dirName()})`;
+  state.running = false;
+  state.grid = cloneGrid(state.baseGrid);
+  dom.status.textContent = "Hazır";
+  renderSlots();
   drawScene();
+  updateScore(0);
+}
+
+function expandProgram() {
+  const expanded = [];
+  for (let i = 0; i < state.program.length; i++) {
+    const cmd = state.program[i];
+    if (cmd === "repeat2" || cmd === "repeat3") {
+      const prev = expanded[expanded.length - 1];
+      const count = cmd === "repeat2" ? 2 : 3;
+      if (prev) {
+        for (let k = 0; k < count; k++) expanded.push(prev);
+      }
+    } else {
+      expanded.push(cmd);
+    }
+  }
+  return expanded;
 }
 
 function runProgram(auto) {
-  if (!state.level) return;
   if (state.program.length === 0) {
     dom.status.textContent = "Önce kartları ekleyin.";
     return;
   }
-  if (!auto && state.stepIndex >= state.program.length) {
-    state.stepIndex = 0;
-    resetGrid();
-  }
   if (auto) {
+    state.expandedProgram = expandProgram();
     state.stepIndex = 0;
-    resetGrid();
+    state.grid = cloneGrid(state.baseGrid);
+  } else if (state.expandedProgram.length === 0 || state.stepIndex >= state.expandedProgram.length) {
+    state.expandedProgram = expandProgram();
+    state.stepIndex = 0;
+    state.grid = cloneGrid(state.baseGrid);
   }
+
   state.running = true;
   const speed = 900 / Number(dom.speed.value);
 
   const step = () => {
-    if (state.stepIndex >= state.program.length) {
+    if (state.stepIndex >= state.expandedProgram.length) {
       state.running = false;
-      dom.status.textContent = checkSuccess() ? "Başarılı!" : "Tekrar dene.";
+      const done = checkSuccess();
+      dom.status.textContent = done ? "Başarılı!" : "Tekrar dene.";
+      finalizeScore(done);
       renderSlots();
       return;
     }
-    const currentCmd = state.program[state.stepIndex];
-    executeCommand(currentCmd);
-    dom.status.textContent = `Adım ${state.stepIndex + 1}/${state.program.length}: ${cardDefs[currentCmd].label} • Yön: ${dirName()}`;
+    const cmd = state.expandedProgram[state.stepIndex];
+    executeCommand(cmd);
+    dom.status.textContent = `Adım ${state.stepIndex + 1}/${state.expandedProgram.length}: ${cardDefs[cmd].label}`;
     state.stepIndex++;
     drawScene();
     renderSlots();
     if (!auto) {
       state.running = false;
-      if (state.stepIndex >= state.program.length) {
-        dom.status.textContent = checkSuccess() ? "Başarılı!" : "Tekrar dene.";
-      }
       return;
     }
     setTimeout(step, speed);
@@ -280,132 +311,93 @@ function runProgram(auto) {
 }
 
 function executeCommand(cmd) {
-  if (!state.level) return;
-  if (cmd === "tekrar") {
-    const prev = state.program[state.stepIndex - 1];
-    if (prev && prev !== "tekrar") executeSingle(prev);
-    return;
+  const pos = findStart();
+  const dirMap = {
+    up: { x: 0, y: -1 },
+    down: { x: 0, y: 1 },
+    left: { x: -1, y: 0 },
+    right: { x: 1, y: 0 }
+  };
+  const d = dirMap[cmd];
+  if (!d) return;
+  const nx = pos.x + d.x;
+  const ny = pos.y + d.y;
+  if (nx < 0 || ny < 0 || nx >= state.grid.length || ny >= state.grid.length) return;
+  if (state.grid[ny][nx] === "#") return;
+  state.grid[pos.y][pos.x] = ".";
+  state.grid[ny][nx] = "S";
+}
+
+function cloneGrid(grid) {
+  return grid.map((row) => row.slice());
+}
+
+function findStart() {
+  for (let y = 0; y < state.grid.length; y++) {
+    for (let x = 0; x < state.grid.length; x++) {
+      if (state.grid[y][x] === "S") return { x, y };
+    }
   }
-  executeSingle(cmd);
-}
-
-function executeSingle(cmd) {
-  if (cmd === "sag") state.dir = (state.dir + 1) % 4;
-  if (cmd === "sol") state.dir = (state.dir + 3) % 4;
-  if (cmd === "ileri") moveForward();
-  if (cmd === "eger") {
-    const next = peekForward();
-    if (next === "#") state.dir = (state.dir + 1) % 4;
-  }
-}
-
-function moveForward() {
-  const pos = findChar("R");
-  const [nx, ny] = nextPos(pos[0], pos[1]);
-  const cell = getCell(nx, ny);
-  if (cell === "#") return;
-  setCell(pos[0], pos[1], ".");
-  setCell(nx, ny, "R");
-}
-
-function peekForward() {
-  const pos = findChar("R");
-  const [nx, ny] = nextPos(pos[0], pos[1]);
-  return getCell(nx, ny);
-}
-
-function nextPos(x, y) {
-  if (state.dir === 0) return [x, y - 1];
-  if (state.dir === 1) return [x + 1, y];
-  if (state.dir === 2) return [x, y + 1];
-  return [x - 1, y];
-}
-
-function findChar(ch) {
-  const grid = getGrid();
-  for (let y = 0; y < grid.length; y++) {
-    const row = grid[y];
-    const x = row.indexOf(ch);
-    if (x >= 0) return [x, y];
-  }
-  return [0, 0];
-}
-
-function getGrid() {
-  return state.level.grid.map((row) => row.split(""));
-}
-
-function setCell(x, y, value) {
-  const rows = state.level.grid.map((row) => row.split(""));
-  rows[y][x] = value;
-  state.level.grid = rows.map((r) => r.join(""));
-}
-
-function getCell(x, y) {
-  const grid = getGrid();
-  if (y < 0 || y >= grid.length || x < 0 || x >= grid[0].length) return "#";
-  return grid[y][x];
+  return { x: 0, y: 0 };
 }
 
 function checkSuccess() {
-  const [rx, ry] = findChar("R");
-  return state.level.targets.some((t) => t.x === rx && t.y === ry);
+  const pos = findStart();
+  return pos.x === state.target.x && pos.y === state.target.y;
 }
 
 function drawScene() {
-  if (!state.level) {
-    ctx.clearRect(0, 0, dom.scene.width, dom.scene.height);
-    return;
-  }
-  const grid = getGrid();
-  const size = dom.scene.width / grid.length;
+  const size = state.grid.length;
+  const cell = dom.scene.width / size;
   ctx.clearRect(0, 0, dom.scene.width, dom.scene.height);
-  grid.forEach((row, y) => {
-    row.forEach((cell, x) => {
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
       ctx.strokeStyle = "#1f2937";
-      ctx.strokeRect(x * size, y * size, size, size);
-      if (cell === "#") {
+      ctx.strokeRect(x * cell, y * cell, cell, cell);
+      const v = state.grid[y][x];
+      if (v === "#") {
         ctx.fillStyle = "#334155";
-        ctx.fillRect(x * size, y * size, size, size);
+        ctx.fillRect(x * cell, y * cell, cell, cell);
       }
-      drawTarget(x, y, size);
-      if (cell === "R") {
-        drawRobot(x, y, size);
+      if (x === state.target.x && y === state.target.y) {
+        ctx.fillStyle = "#fbbf24";
+        ctx.beginPath();
+        ctx.arc(x * cell + cell / 2, y * cell + cell / 2, cell / 3, 0, Math.PI * 2);
+        ctx.fill();
       }
-    });
-  });
+      if (v === "S") {
+        ctx.fillStyle = "#38bdf8";
+        ctx.beginPath();
+        ctx.arc(x * cell + cell / 2, y * cell + cell / 2, cell / 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
 }
 
 function updateShareUrl() {
-  if (!state.level) return;
-  const url = new URL(window.location.href);
-  url.searchParams.set("e", state.level.id);
+  const url = new URL(baseUrl);
+  url.searchParams.set("size", String(state.gridSize));
+  url.searchParams.set("diff", state.difficulty);
+  url.searchParams.set("mode", state.mode);
   dom.shareUrl.value = url.toString();
   updateQr(url.toString());
 }
 
 function setBaseUrlText() {
-  const base = "https://fsemizz.github.io/tubitak-proje/";
-  dom.baseUrlText.textContent = `Base: ${base}`;
-  updateQr(base);
+  dom.baseUrlText.textContent = `Base: ${baseUrl}`;
+  updateQr(baseUrl);
+}
+
+function updateQr(value) {
+  const encoded = encodeURIComponent(value);
+  dom.qrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encoded}`;
 }
 
 function copyLink() {
   if (!dom.shareUrl.value) return;
   navigator.clipboard.writeText(dom.shareUrl.value);
   dom.status.textContent = "Link kopyalandı.";
-}
-
-function showHint() {
-  if (!state.level) return;
-  dom.status.textContent = `İpucu: ${state.level.solution[0]} ile başla.`;
-}
-
-function showSolution() {
-  if (!state.level) return;
-  state.program = [...state.level.solution];
-  renderSlots();
-  dom.status.textContent = "Çözüm yerleştirildi.";
 }
 
 function toggleFullscreen() {
@@ -416,82 +408,68 @@ function toggleFullscreen() {
   }
 }
 
-function loadFromUrl() {
-  const id = new URLSearchParams(window.location.search).get("e");
-  if (!id) return;
-  const lvl = Object.values(levels).flat().find((l) => l.id === id);
-  if (lvl) {
-    state.mode = lvl.id.startsWith("OKN") ? "okon" : "ilk";
-    document.querySelectorAll(".chip").forEach((c) => c.classList.remove("active"));
-    document.querySelector(`.chip[data-mode='${state.mode}']`).classList.add("active");
-    renderLevels();
-    selectLevel(lvl);
-  }
+function showHint() {
+  dom.status.textContent = "İpucu: Hedefe kısa bir yol bul ve kartları sırala.";
 }
 
-function resetGrid() {
-  state.level.grid = state.level.baseGrid.slice();
+function showSuggestion() {
+  dom.status.textContent = "Öneri: Önce yatay, sonra dikey ilerle.";
 }
 
-function findTargets(grid) {
-  const targets = [];
-  grid.forEach((row, y) => {
-    row.split("").forEach((cell, x) => {
-      if (cell === "E" || cell === "T" || cell === "*") targets.push({ x, y });
-    });
+function updateScore(value) {
+  dom.score.textContent = `Puan: ${value}`;
+}
+
+function finalizeScore(success) {
+  const ideal = manhattan(state.start, state.target);
+  const used = state.expandedProgram.length || 1;
+  const size = state.grid.length;
+  const difficultyMultiplier = state.difficulty === "easy" ? 1 : state.difficulty === "hard" ? 1.4 : 1.2;
+  let score = Math.max(0, Math.round((ideal / used) * difficultyMultiplier * (size / 6) * 100));
+  if (!success) score = Math.max(0, Math.round(score * 0.3));
+  updateScore(score);
+  addHistory({
+    size,
+    diff: state.difficulty,
+    score,
+    success,
+    steps: used
   });
-  return targets;
 }
 
-function drawTarget(x, y, size) {
-  if (!state.level.targets.some((t) => t.x === x && t.y === y)) return;
-  ctx.fillStyle = "#fbbf24";
-  ctx.beginPath();
-  ctx.arc(x * size + size / 2, y * size + size / 2, size / 3, 0, Math.PI * 2);
-  ctx.fill();
+function addHistory(item) {
+  state.history.unshift(item);
+  state.history = state.history.slice(0, 5);
+  renderHistory();
 }
 
-function drawRobot(x, y, size) {
-  ctx.fillStyle = "#38bdf8";
-  ctx.fillRect(x * size + 8, y * size + 8, size - 16, size - 16);
-  ctx.fillStyle = "#0b1120";
-  ctx.beginPath();
-  const cx = x * size + size / 2;
-  const cy = y * size + size / 2;
-  const r = size / 4;
-  if (state.dir === 0) {
-    ctx.moveTo(cx, cy - r);
-    ctx.lineTo(cx - r, cy + r);
-    ctx.lineTo(cx + r, cy + r);
-  } else if (state.dir === 1) {
-    ctx.moveTo(cx + r, cy);
-    ctx.lineTo(cx - r, cy - r);
-    ctx.lineTo(cx - r, cy + r);
-  } else if (state.dir === 2) {
-    ctx.moveTo(cx, cy + r);
-    ctx.lineTo(cx - r, cy - r);
-    ctx.lineTo(cx + r, cy - r);
-  } else {
-    ctx.moveTo(cx - r, cy);
-    ctx.lineTo(cx + r, cy - r);
-    ctx.lineTo(cx + r, cy + r);
-  }
-  ctx.closePath();
-  ctx.fill();
+function renderHistory() {
+  dom.historyList.innerHTML = "";
+  state.history.forEach((h) => {
+    const li = document.createElement("li");
+    li.className = "history-item";
+    li.textContent = `${h.size}x${h.size} · ${h.diff} · ${h.score} puan · ${h.success ? "Başarılı" : "Başarısız"}`;
+    dom.historyList.appendChild(li);
+  });
 }
 
-function updateQr(value) {
-  if (!dom.qrImage) return;
-  const encoded = encodeURIComponent(value);
-  dom.qrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encoded}`;
+function manhattan(a, b) {
+  return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 }
 
-function dirName() {
-  if (state.dir === 0) return "Yukarı";
-  if (state.dir === 1) return "Sağa";
-  if (state.dir === 2) return "Aşağı";
-  return "Sola";
+function loadFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const size = Number(params.get("size"));
+  const diff = params.get("diff");
+  const mode = params.get("mode");
+  if (size) state.gridSize = size;
+  if (diff) state.difficulty = diff;
+  if (mode && modeConfig[mode]) state.mode = mode;
+  dom.gridSize.value = String(state.gridSize);
+  dom.difficulty.value = state.difficulty;
+  document.querySelectorAll(".chip").forEach((c) => c.classList.remove("active"));
+  const active = document.querySelector(`.chip[data-mode='${state.mode}']`);
+  if (active) active.classList.add("active");
 }
 
-setBaseUrlText();
 init();
