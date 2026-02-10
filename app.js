@@ -1,9 +1,9 @@
 ﻿const baseUrl = "https://fsemizz.github.io/tubitak-proje/";
 
 const modeConfig = {
-  m12: { label: "1-2", cards: ["up", "down", "left", "right"], slots: 6 },
-  m34: { label: "3-4", cards: ["up", "down", "left", "right", "repeat2"], slots: 8 },
-  m5p: { label: "5+", cards: ["up", "down", "left", "right", "repeat2", "repeat3"], slots: 10 }
+  pre: { label: "Anaokulu", cards: ["up", "down", "left", "right"], slots: 5 },
+  m12: { label: "1-2", cards: ["up", "down", "left", "right", "repeat2"], slots: 7 },
+  m34: { label: "3-4", cards: ["up", "down", "left", "right", "repeat2", "repeat3"], slots: 9 }
 };
 
 const cardDefs = {
@@ -16,7 +16,7 @@ const cardDefs = {
 };
 
 const state = {
-  mode: "m12",
+  mode: "pre",
   gridSize: 6,
   difficulty: "medium",
   program: [],
@@ -82,7 +82,7 @@ function bindModeChips() {
       updateShareUrl();
     });
   });
-  document.querySelector(".chip[data-mode='m12']").classList.add("active");
+  document.querySelector(".chip[data-mode='pre']").classList.add("active");
 }
 
 function bindControls() {
