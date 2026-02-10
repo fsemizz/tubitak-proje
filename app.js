@@ -194,7 +194,7 @@ function getAvailableCards() {
 
 function renderSlots() {
   dom.slots.innerHTML = "";
-  const count = modeConfig[state.mode].slots;
+  const count = getSlotLimit();
   for (let i = 0; i < count; i++) {
     const slot = document.createElement("li");
     slot.className = "slot";
@@ -220,12 +220,22 @@ function renderSlots() {
 }
 
 function addCommand(cmd) {
-  const limit = modeConfig[state.mode].slots;
+  const limit = getSlotLimit();
   if (state.program.length >= limit) return;
   state.program.push(cmd);
   state.expandedProgram = [];
   state.stepIndex = 0;
   renderSlots();
+}
+
+function getSlotLimit() {
+  const base = modeConfig[state.mode].slots;
+  if (state.start && state.target) {
+    const ideal = manhattan(state.start, state.target);
+    const extra = state.game === "loop" ? 3 : 2;
+    return clamp(ideal + extra, base, base + 6);
+  }
+  return base;
 }
 
 function generateScenario() {
