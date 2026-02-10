@@ -233,7 +233,7 @@ function getSlotLimit() {
   if (state.start && state.target) {
     const ideal = manhattan(state.start, state.target);
     const extra = state.game === "loop" ? 3 : 2;
-    return clamp(ideal + extra, base, base + 6);
+    return Math.max(base, ideal + extra);
   }
   return base;
 }
