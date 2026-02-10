@@ -51,6 +51,7 @@ const dom = {
   baseUrlText: document.getElementById("baseUrlText"),
   qrImage: document.getElementById("qrImage"),
   gameHint: document.getElementById("gameHint"),
+  gameHow: document.getElementById("gameHow"),
   copyBtn: document.getElementById("copyBtn"),
   fullscreenBtn: document.getElementById("fullscreenBtn"),
   helpBtn: document.getElementById("helpBtn"),
@@ -77,18 +78,20 @@ function init() {
 }
 
 function bindModeChips() {
-  document.querySelectorAll(".chip").forEach((chip) => {
+  document.querySelectorAll(".mode-chip").forEach((chip) => {
     chip.addEventListener("click", () => {
       state.mode = chip.dataset.mode;
-      document.querySelectorAll(".chip").forEach((c) => c.classList.remove("active"));
+      document.querySelectorAll(".mode-chip").forEach((c) => c.classList.remove("active"));
       chip.classList.add("active");
       state.program = [];
+      state.expandedProgram = [];
+      state.stepIndex = 0;
       renderCards();
       renderSlots();
       updateShareUrl();
     });
   });
-  document.querySelector(".chip[data-mode='pre']").classList.add("active");
+  document.querySelector(".mode-chip[data-mode='pre']").classList.add("active");
 }
 
 function bindGameChips() {
@@ -99,6 +102,7 @@ function bindGameChips() {
       chip.classList.add("active");
       generateScenario();
       resetRun();
+      renderCards();
       updateGameHint();
       updateShareUrl();
     });
@@ -143,14 +147,17 @@ function updateGameHint() {
     dom.gameHint.textContent = "Sıralama: Kartları doğru sıraya koyarak hedefe ulaş.";
     dom.levelTitle.textContent = "Dinamik Senaryo";
     dom.levelGoal.textContent = "Hedefe en kısa yoldan ulaş.";
+    if (dom.gameHow) dom.gameHow.textContent = "Kartları sırala, Çalıştır ile hepsini oynat, Adım ile tek tek dene.";
   } else if (state.game === "loop") {
     dom.gameHint.textContent = "Döngü: Tekrar kartlarıyla aynı hareketi kısalt.";
     dom.levelTitle.textContent = "Tekrarla Kazan";
     dom.levelGoal.textContent = "Uzun yolu tekrar kartlarıyla kısalt.";
+    if (dom.gameHow) dom.gameHow.textContent = "Aynı yönü arka arkaya yapacaksan Tekrar kartlarını kullan.";
   } else {
     dom.gameHint.textContent = "Debug: Hazır koddaki hatayı bul ve düzelt.";
     dom.levelTitle.textContent = "Hata Avcısı";
     dom.levelGoal.textContent = "Hatalı kodu düzelt ve hedefe ulaş.";
+    if (dom.gameHow) dom.gameHow.textContent = "Hazır kodu düzenle. Yanlış adımı sil veya değiştir, sonra çalıştır.";
   }
 }
 
