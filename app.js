@@ -23,6 +23,7 @@ const state = {
   expandedProgram: [],
   stepIndex: 0,
   running: false,
+  runToken: 0,
   grid: [],
   baseGrid: [],
   start: null,
@@ -145,6 +146,8 @@ function renderSlots() {
     btn.addEventListener("click", (e) => {
       const idx = Number(e.target.dataset.idx);
       state.program.splice(idx, 1);
+      state.expandedProgram = [];
+      state.stepIndex = 0;
       renderSlots();
     });
   });
@@ -154,6 +157,8 @@ function addCommand(cmd) {
   const limit = modeConfig[state.mode].slots;
   if (state.program.length >= limit) return;
   state.program.push(cmd);
+  state.expandedProgram = [];
+  state.stepIndex = 0;
   renderSlots();
 }
 
@@ -243,6 +248,7 @@ function resetRun() {
   state.expandedProgram = [];
   state.stepIndex = 0;
   state.running = false;
+  state.runToken++;
   state.grid = cloneGrid(state.baseGrid);
   dom.status.textContent = "Hazır";
   renderSlots();
@@ -272,20 +278,26 @@ function runProgram(auto) {
     dom.status.textContent = "Önce kartları ekleyin.";
     return;
   }
+  const token = ++state.runToken;
+  state.running = true;
+  let freshStart = false;
   if (auto) {
     state.expandedProgram = expandProgram();
     state.stepIndex = 0;
     state.grid = cloneGrid(state.baseGrid);
+    freshStart = true;
   } else if (state.expandedProgram.length === 0 || state.stepIndex >= state.expandedProgram.length) {
     state.expandedProgram = expandProgram();
     state.stepIndex = 0;
     state.grid = cloneGrid(state.baseGrid);
+    freshStart = true;
   }
+  if (freshStart) updateScore(0);
 
-  state.running = true;
   const speed = 900 / Number(dom.speed.value);
 
   const step = () => {
+    if (token !== state.runToken) return;
     if (state.stepIndex >= state.expandedProgram.length) {
       state.running = false;
       const done = checkSuccess();

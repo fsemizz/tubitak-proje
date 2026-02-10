@@ -230,7 +230,13 @@ body {
 
 .slot .remove { color: #f87171; cursor: pointer; font-weight: 700; }
 
-.runbar { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
+.runbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
 
 .speed { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--muted); }
 
