@@ -43,6 +43,7 @@
               <button class="chip game-chip" data-game="loop">🔁 Tekrarla Kazan</button>
               <button class="chip game-chip" data-game="debug">🐞 Hata Avcısı</button>
               <button class="chip game-chip" data-game="order">🧩 Sirala</button>
+              <button class="chip game-chip" data-game="duel">⚔️ Kod Kapismasi</button>
             </div>
             <div class="hint" id="gameHint"></div>
           </div>
@@ -167,6 +168,42 @@
             <div class="card-title">Kod Karsiligi</div>
             <pre id="orderCode" class="mono"></pre>
           </div>
+        </section>
+
+        <section id="duelGameArea" class="duel-game hidden">
+          <div class="duel-head">
+            <div class="order-title">Kod Kapismasi</div>
+            <div class="row">
+              <button id="duelNewBtn" class="btn ghost">Yeni Mac</button>
+            </div>
+          </div>
+          <div class="duel-question-wrap card">
+            <div class="card-title">Soru</div>
+            <div id="duelQuestionType" class="hint"></div>
+            <div id="duelQuestionText" class="duel-question">Soru yukleniyor...</div>
+          </div>
+          <div class="duel-rope card">
+            <div class="duel-scoreline">
+              <span id="duelLeftScore">Sol: 0</span>
+              <span id="duelNeed">Kazanmak icin fark: 3</span>
+              <span id="duelRightScore">Sag: 0</span>
+            </div>
+            <div class="rope-track">
+              <div class="rope-center"></div>
+              <div id="ropeMarker" class="rope-marker"></div>
+            </div>
+          </div>
+          <div class="duel-sides">
+            <div class="duel-side">
+              <div class="section-title">Sol Ogrenci</div>
+              <div id="duelLeftOptions" class="duel-options"></div>
+            </div>
+            <div class="duel-side">
+              <div class="section-title">Sag Ogrenci</div>
+              <div id="duelRightOptions" class="duel-options"></div>
+            </div>
+          </div>
+          <div id="duelStatus" class="status">Ilk dogru cevap veren ipi kendi tarafina ceker.</div>
         </section>
       </section>
     </main>

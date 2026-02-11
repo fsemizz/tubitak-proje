@@ -46,6 +46,44 @@ const orderScenarios = [
   }
 ];
 
+const duelQuestions = [
+  {
+    type: "Dogru kodu sec",
+    text: "Robotun bir kare yukari, sonra bir kare saga gitmesi icin hangi kod dogru?",
+    options: ["up, right", "right, up", "up, up", "left, right"],
+    answer: 0
+  },
+  {
+    type: "Siralamayi bul",
+    text: "Dis fircalama icin dogru sira hangisi?",
+    options: [
+      "Muslugu ac -> Macun sur -> Fircala -> Calkala",
+      "Macun sur -> Muslugu ac -> Calkala -> Fircala",
+      "Fircala -> Macun sur -> Muslugu ac -> Calkala",
+      "Calkala -> Muslugu ac -> Fircala -> Macun sur"
+    ],
+    answer: 0
+  },
+  {
+    type: "Hatayi bul",
+    text: "Kod: up, up, left. Hedef yukarida sagda. Hangi adim hatali?",
+    options: ["1. adim", "2. adim", "3. adim", "Hata yok"],
+    answer: 2
+  },
+  {
+    type: "Sonucu tahmin et",
+    text: "Baslangic ortada. Kod: right, right, down. Son konum nasil degisir?",
+    options: ["2 saga, 1 asagi", "2 sola, 1 asagi", "2 saga, 1 yukari", "1 saga, 2 asagi"],
+    answer: 0
+  },
+  {
+    type: "Dogru kodu sec",
+    text: "Engel solda. Hedef saga dogru. En guvenli ilk komut hangisi?",
+    options: ["left", "right", "up", "down"],
+    answer: 1
+  }
+];
+
 const state = {
   mode: "pre",
   game: "seq",
@@ -67,6 +105,13 @@ const state = {
     scenario: null,
     mixed: [],
     sorted: []
+  },
+  duel: {
+    left: 0,
+    right: 0,
+    winner: "",
+    current: null,
+    locked: false
   }
 };
 
@@ -108,7 +153,18 @@ const dom = {
   orderStatus: document.getElementById("orderStatus"),
   orderCode: document.getElementById("orderCode"),
   orderCheckBtn: document.getElementById("orderCheckBtn"),
-  orderNewBtn: document.getElementById("orderNewBtn")
+  orderNewBtn: document.getElementById("orderNewBtn"),
+  duelGameArea: document.getElementById("duelGameArea"),
+  duelQuestionType: document.getElementById("duelQuestionType"),
+  duelQuestionText: document.getElementById("duelQuestionText"),
+  duelLeftOptions: document.getElementById("duelLeftOptions"),
+  duelRightOptions: document.getElementById("duelRightOptions"),
+  duelStatus: document.getElementById("duelStatus"),
+  duelLeftScore: document.getElementById("duelLeftScore"),
+  duelRightScore: document.getElementById("duelRightScore"),
+  duelNeed: document.getElementById("duelNeed"),
+  ropeMarker: document.getElementById("ropeMarker"),
+  duelNewBtn: document.getElementById("duelNewBtn")
 };
 
 const ctx = dom.scene.getContext("2d");
@@ -123,6 +179,7 @@ function init() {
   toggleGameLayout();
   renderCards();
   renderOrderGame();
+  renderDuelGame();
   renderSlots();
   drawScene();
   updateShareUrl();
@@ -158,6 +215,7 @@ function bindGameChips() {
       toggleGameLayout();
       renderCards();
       renderOrderGame();
+      renderDuelGame();
       updateGameHint();
       updateShareUrl();
     });
@@ -199,6 +257,10 @@ function bindControls() {
     seedOrderScenario();
     renderOrderGame();
   });
+  if (dom.duelNewBtn) dom.duelNewBtn.addEventListener("click", () => {
+    seedDuelMatch();
+    renderDuelGame();
+  });
 }
 
 function updateGameHint() {
@@ -224,6 +286,13 @@ function updateGameHint() {
     if (dom.gameHow) dom.gameHow.textContent = "Hazir kodu duzenle. Yanlis adimi sil veya degistir, sonra calistir.";
     return;
   }
+  if (state.game === "duel") {
+    dom.gameHint.textContent = "Kapisma: Ilk dogru cevap veren ipi kendi tarafina ceker.";
+    dom.levelTitle.textContent = "Kod Kapismasi";
+    dom.levelGoal.textContent = "Hiz ve dogrulukla 3 fark yakala.";
+    if (dom.gameHow) dom.gameHow.textContent = "Iki ogrenci ayni soruyu kendi tarafindan cevaplar. Dogru cevap ipi bir adim ceker.";
+    return;
+  }
   dom.gameHint.textContent = "Gorselli adim kartlarini dogru siraya koy.";
   dom.levelTitle.textContent = "Gunluk Is Siralama";
   dom.levelGoal.textContent = "Algoritma = adim adim is.";
@@ -232,8 +301,10 @@ function updateGameHint() {
 
 function toggleGameLayout() {
   const showOrder = state.game === "order";
-  if (dom.gridGameArea) dom.gridGameArea.classList.toggle("hidden", showOrder);
+  const showDuel = state.game === "duel";
+  if (dom.gridGameArea) dom.gridGameArea.classList.toggle("hidden", showOrder || showDuel);
   if (dom.orderGameArea) dom.orderGameArea.classList.toggle("hidden", !showOrder);
+  if (dom.duelGameArea) dom.duelGameArea.classList.toggle("hidden", !showDuel);
 }
 
 function seedOrderScenario() {
@@ -352,8 +423,84 @@ function shuffle(arr) {
   return copy;
 }
 
+function seedDuelMatch() {
+  state.duel.left = 0;
+  state.duel.right = 0;
+  state.duel.winner = "";
+  state.duel.locked = false;
+  state.duel.current = randomDuelQuestion();
+}
+
+function randomDuelQuestion() {
+  return duelQuestions[Math.floor(Math.random() * duelQuestions.length)];
+}
+
+function renderDuelGame() {
+  if (state.game !== "duel") return;
+  if (!state.duel.current) seedDuelMatch();
+  dom.duelQuestionType.textContent = `Tur: ${state.duel.current.type}`;
+  dom.duelQuestionText.textContent = state.duel.current.text;
+  dom.duelStatus.textContent = state.duel.winner
+    ? `${state.duel.winner} kazandi. Yeni mac baslat.`
+    : "Ilk dogru cevap veren ipi kendi tarafina ceker.";
+  dom.duelLeftScore.textContent = `Sol: ${state.duel.left}`;
+  dom.duelRightScore.textContent = `Sag: ${state.duel.right}`;
+  if (dom.duelNeed) dom.duelNeed.textContent = "Kazanmak icin fark: 3";
+  renderDuelOptions("left");
+  renderDuelOptions("right");
+  updateRopeMarker();
+}
+
+function renderDuelOptions(side) {
+  const container = side === "left" ? dom.duelLeftOptions : dom.duelRightOptions;
+  container.innerHTML = "";
+  state.duel.current.options.forEach((opt, idx) => {
+    const btn = document.createElement("button");
+    btn.className = "duel-opt";
+    btn.textContent = opt;
+    btn.disabled = !!state.duel.winner || state.duel.locked;
+    btn.addEventListener("click", () => onDuelAnswer(side, idx));
+    container.appendChild(btn);
+  });
+}
+
+function onDuelAnswer(side, answerIdx) {
+  if (state.game !== "duel" || state.duel.locked || state.duel.winner) return;
+  state.duel.locked = true;
+  const correct = answerIdx === state.duel.current.answer;
+  if (correct) {
+    if (side === "left") state.duel.left++;
+    else state.duel.right++;
+    dom.duelStatus.textContent = `${side === "left" ? "Sol" : "Sag"} dogru cevap verdi.`;
+  } else {
+    dom.duelStatus.textContent = `${side === "left" ? "Sol" : "Sag"} yanlis cevap verdi.`;
+  }
+  updateRopeMarker();
+  const diff = Math.abs(state.duel.left - state.duel.right);
+  if (diff >= 3) {
+    state.duel.winner = state.duel.left > state.duel.right ? "Sol ogrenci" : "Sag ogrenci";
+    renderDuelGame();
+    return;
+  }
+  setTimeout(() => {
+    state.duel.current = randomDuelQuestion();
+    state.duel.locked = false;
+    renderDuelGame();
+  }, 500);
+}
+
+function updateRopeMarker() {
+  if (!dom.ropeMarker) return;
+  const diff = state.duel.left - state.duel.right;
+  const clamped = clamp(diff, -3, 3);
+  const percent = 50 + clamped * 12;
+  dom.ropeMarker.style.left = `${percent}%`;
+  dom.duelLeftScore.textContent = `Sol: ${state.duel.left}`;
+  dom.duelRightScore.textContent = `Sag: ${state.duel.right}`;
+}
+
 function renderCards() {
-  if (state.game === "order") return;
+  if (state.game === "order" || state.game === "duel") return;
   dom.cardTray.innerHTML = "";
   const cards = getAvailableCards();
   if (!cards.length) {
@@ -373,7 +520,7 @@ function renderCards() {
 }
 
 function getAvailableCards() {
-  if (state.game === "order") return [];
+  if (state.game === "order" || state.game === "duel") return [];
   if (state.game === "loop") {
     const base = ["up", "right", "repeat2"];
     if (state.mode === "m34") return [...base, "repeat3"];
@@ -439,6 +586,10 @@ function generateScenario() {
   const size = state.gridSize;
   if (state.game === "order") {
     seedOrderScenario();
+    return;
+  }
+  if (state.game === "duel") {
+    seedDuelMatch();
     return;
   }
 
@@ -574,6 +725,12 @@ function resetRun() {
     renderOrderGame();
     return;
   }
+  if (state.game === "duel") {
+    updateScore(0);
+    seedDuelMatch();
+    renderDuelGame();
+    return;
+  }
   if (state.game !== "debug") {
     state.program = [];
   }
@@ -609,7 +766,7 @@ function expandProgram() {
 }
 
 function runProgram(auto) {
-  if (state.game === "order") return;
+  if (state.game === "order" || state.game === "duel") return;
   if (state.program.length === 0) {
     dom.status.textContent = "Önce kartları ekleyin.";
     return;
@@ -808,6 +965,10 @@ function showHint() {
     dom.orderStatus.textContent = "Ipucu: Once islem baslangici, sonra uygulama, en son bitis adimi gelir.";
     return;
   }
+  if (state.game === "duel") {
+    dom.duelStatus.textContent = "Ipucu: Hizi arttir ama cevaplamadan once secenegi kontrol et.";
+    return;
+  }
   if (state.game === "loop") {
     dom.status.textContent = "İpucu: Aynı yönü tekrar ediyorsan Tekrar kartını kullan.";
   } else if (state.game === "debug") {
@@ -823,6 +984,10 @@ function showSuggestion() {
       dom.orderCode.textContent = state.order.scenario.steps.map((step, i) => `${i + 1}. ${step.text}`).join("\n");
       dom.orderStatus.textContent = "Ornek dogru sirayi asagida gordun.";
     }
+    return;
+  }
+  if (state.game === "duel") {
+    dom.duelStatus.textContent = "Oneri: Siralama sorularinda baslangic adimini bul, sonra akisi tamamla.";
     return;
   }
   if (state.game === "loop") {
@@ -896,7 +1061,7 @@ function loadFromUrl() {
   if (size) state.gridSize = size;
   if (diff) state.difficulty = diff;
   if (mode && modeConfig[mode]) state.mode = mode;
-  if (game && ["seq", "loop", "debug", "order"].includes(game)) state.game = game;
+  if (game && ["seq", "loop", "debug", "order", "duel"].includes(game)) state.game = game;
   dom.gridSize.value = String(state.gridSize);
   dom.difficulty.value = state.difficulty;
   document.querySelectorAll(".mode-chip").forEach((c) => c.classList.remove("active"));
