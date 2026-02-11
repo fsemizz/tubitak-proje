@@ -22,9 +22,11 @@ const state = {
   difficulty: "medium",
   program: [],
   expandedProgram: [],
+  programSignature: "",
   stepIndex: 0,
   running: false,
   runToken: 0,
+  invalidMoves: 0,
   grid: [],
   baseGrid: [],
   start: null,
@@ -39,6 +41,7 @@ const dom = {
   levelGoal: document.getElementById("levelGoal"),
   status: document.getElementById("status"),
   score: document.getElementById("score"),
+  scoreRules: document.getElementById("scoreRules"),
   scene: document.getElementById("scene"),
   speed: document.getElementById("speed"),
   startBtn: document.getElementById("startBtn"),
@@ -85,7 +88,9 @@ function bindModeChips() {
       chip.classList.add("active");
       state.program = [];
       state.expandedProgram = [];
+      state.programSignature = "";
       state.stepIndex = 0;
+      state.runToken++;
       renderCards();
       renderSlots();
       updateShareUrl();
@@ -213,7 +218,9 @@ function renderSlots() {
       const idx = Number(e.target.dataset.idx);
       state.program.splice(idx, 1);
       state.expandedProgram = [];
+      state.programSignature = "";
       state.stepIndex = 0;
+      state.runToken++;
       renderSlots();
     });
   });
@@ -224,7 +231,9 @@ function addCommand(cmd) {
   if (state.program.length >= limit) return;
   state.program.push(cmd);
   state.expandedProgram = [];
+  state.programSignature = "";
   state.stepIndex = 0;
+  state.runToken++;
   renderSlots();
 }
 
@@ -372,9 +381,11 @@ function resetRun() {
     state.program = [];
   }
   state.expandedProgram = [];
+  state.programSignature = "";
   state.stepIndex = 0;
   state.running = false;
   state.runToken++;
+  state.invalidMoves = 0;
   state.grid = cloneGrid(state.baseGrid);
   dom.status.textContent = "Hazır";
   if (state.game === "debug") seedDebugProgram(true);
@@ -407,19 +418,25 @@ function runProgram(auto) {
   }
   const token = ++state.runToken;
   state.running = true;
-  let freshStart = false;
+  const signature = state.program.join("|");
+  const needsRebuild =
+    state.programSignature !== signature ||
+    state.expandedProgram.length === 0 ||
+    state.stepIndex >= state.expandedProgram.length;
+
   if (auto) {
     state.expandedProgram = expandProgram();
+    state.programSignature = signature;
     state.stepIndex = 0;
-    state.grid = cloneGrid(state.baseGrid);
-    freshStart = true;
-  } else if (state.expandedProgram.length === 0 || state.stepIndex >= state.expandedProgram.length) {
+    state.invalidMoves = 0;
+    updateScore(0);
+  } else if (needsRebuild) {
     state.expandedProgram = expandProgram();
+    state.programSignature = signature;
     state.stepIndex = 0;
-    state.grid = cloneGrid(state.baseGrid);
-    freshStart = true;
+    state.invalidMoves = 0;
+    updateScore(0);
   }
-  if (freshStart) updateScore(0);
 
   const speed = 900 / Number(dom.speed.value);
 
@@ -434,7 +451,8 @@ function runProgram(auto) {
       return;
     }
     const cmd = state.expandedProgram[state.stepIndex];
-    executeCommand(cmd);
+    const moved = executeCommand(cmd);
+    if (!moved) state.invalidMoves++;
     dom.status.textContent = `Adım ${state.stepIndex + 1}/${state.expandedProgram.length}: ${cardDefs[cmd].label}`;
     state.stepIndex++;
     drawScene();
@@ -458,13 +476,14 @@ function executeCommand(cmd) {
     right: { x: 1, y: 0 }
   };
   const d = dirMap[cmd];
-  if (!d) return;
+  if (!d) return false;
   const nx = pos.x + d.x;
   const ny = pos.y + d.y;
-  if (nx < 0 || ny < 0 || nx >= state.grid.length || ny >= state.grid.length) return;
-  if (state.grid[ny][nx] === "#") return;
+  if (nx < 0 || ny < 0 || nx >= state.grid.length || ny >= state.grid.length) return false;
+  if (state.grid[ny][nx] === "#") return false;
   state.grid[pos.y][pos.x] = ".";
   state.grid[ny][nx] = "S";
+  return true;
 }
 
 function cloneGrid(grid) {
@@ -608,16 +627,28 @@ function showSuggestion() {
 
 function updateScore(value) {
   dom.score.textContent = `Puan: ${value}`;
+  if (dom.scoreRules) {
+    dom.scoreRules.textContent = "Kural: Hedefe ulasirsan puan alirsin. Fazla adim ve duvar/sinir carpmasi puani dusurur. Hedefe ulasilmazsa puan 0.";
+  }
 }
 
 function finalizeScore(success) {
-  const ideal = manhattan(state.start, state.target);
-  const used = state.expandedProgram.length || 1;
+  const ideal = Math.max(1, manhattan(state.start, state.target));
+  const used = Math.max(1, state.expandedProgram.length);
   const size = state.grid.length;
-  const difficultyMultiplier = state.difficulty === "easy" ? 1 : state.difficulty === "hard" ? 1.4 : 1.2;
-  let score = Math.max(0, Math.round((ideal / used) * difficultyMultiplier * (size / 6) * 100));
-  if (!success) score = Math.max(0, Math.round(score * 0.3));
+  const difficultyBonus = state.difficulty === "easy" ? 0 : state.difficulty === "hard" ? 15 : 8;
+  const sizeBonus = Math.max(0, (size - 3) * 2);
+  const extraStepPenalty = Math.max(0, used - ideal) * 6;
+  const invalidPenalty = state.invalidMoves * 12;
+
+  let score = 0;
+  if (success) {
+    score = Math.max(0, Math.round(100 + difficultyBonus + sizeBonus - extraStepPenalty - invalidPenalty));
+  }
   updateScore(score);
+  dom.status.textContent = success
+    ? `Basarili! Puan: ${score} (Fazla adim cezasi: ${extraStepPenalty}, carpma cezasi: ${invalidPenalty})`
+    : "Basarisiz. Hedefe ulasilmadi, puan 0.";
   addHistory({
     size,
     diff: state.difficulty,
@@ -659,8 +690,8 @@ function loadFromUrl() {
   if (game && ["seq", "loop", "debug"].includes(game)) state.game = game;
   dom.gridSize.value = String(state.gridSize);
   dom.difficulty.value = state.difficulty;
-  document.querySelectorAll(".chip").forEach((c) => c.classList.remove("active"));
-  const active = document.querySelector(`.chip[data-mode='${state.mode}']`);
+  document.querySelectorAll(".mode-chip").forEach((c) => c.classList.remove("active"));
+  const active = document.querySelector(`.mode-chip[data-mode='${state.mode}']`);
   if (active) active.classList.add("active");
   document.querySelectorAll(".game-chip").forEach((c) => c.classList.remove("active"));
   const activeGame = document.querySelector(`.game-chip[data-game='${state.game}']`);
