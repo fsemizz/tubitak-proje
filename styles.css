@@ -357,6 +357,7 @@ body {
 }
 
 .duel-game { display: grid; gap: 12px; }
+.duel-game { position: relative; overflow: hidden; }
 
 .duel-head {
   display: flex;
@@ -381,6 +382,7 @@ body {
 
 .rope-track {
   position: relative;
+  flex: 1;
   height: 18px;
   border-radius: 999px;
   background: #0f172a;
@@ -415,6 +417,28 @@ body {
   gap: 12px;
 }
 
+.duel-stage {
+  display: grid;
+  grid-template-columns: 54px 1fr 54px;
+  gap: 10px;
+  align-items: center;
+}
+
+.duel-kid {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-size: 1.5rem;
+  background: #111827;
+  border: 1px solid #334155;
+  transition: transform 180ms ease;
+}
+
+.duel-kid.pull-left { transform: translateX(-8px) rotate(-6deg) scale(1.05); }
+.duel-kid.pull-right { transform: translateX(8px) rotate(6deg) scale(1.05); }
+
 .duel-side {
   background: #0b1220;
   border: 1px solid #1f2937;
@@ -435,6 +459,39 @@ body {
   color: var(--text);
   padding: 10px;
   cursor: pointer;
+}
+
+.duel-overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(2, 6, 23, 0.72);
+  font-size: 2.2rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  z-index: 10;
+}
+
+.duel-confetti {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.confetti-piece {
+  position: absolute;
+  top: -12px;
+  width: 8px;
+  height: 14px;
+  opacity: 0.9;
+  animation: confetti-fall 1200ms linear forwards;
+}
+
+@keyframes confetti-fall {
+  0% { transform: translateY(0) rotate(0deg); opacity: 0.9; }
+  100% { transform: translateY(360px) rotate(360deg); opacity: 0; }
 }
 
 #help {

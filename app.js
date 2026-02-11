@@ -46,43 +46,69 @@ const orderScenarios = [
   }
 ];
 
-const duelQuestions = [
-  {
-    type: "Dogru kodu sec",
-    text: "Robotun bir kare yukari, sonra bir kare saga gitmesi icin hangi kod dogru?",
-    options: ["up, right", "right, up", "up, up", "left, right"],
-    answer: 0
-  },
-  {
-    type: "Siralamayi bul",
-    text: "Dis fircalama icin dogru sira hangisi?",
-    options: [
-      "Muslugu ac -> Macun sur -> Fircala -> Calkala",
-      "Macun sur -> Muslugu ac -> Calkala -> Fircala",
-      "Fircala -> Macun sur -> Muslugu ac -> Calkala",
-      "Calkala -> Muslugu ac -> Fircala -> Macun sur"
-    ],
-    answer: 0
-  },
-  {
-    type: "Hatayi bul",
-    text: "Kod: up, up, left. Hedef yukarida sagda. Hangi adim hatali?",
-    options: ["1. adim", "2. adim", "3. adim", "Hata yok"],
-    answer: 2
-  },
-  {
-    type: "Sonucu tahmin et",
-    text: "Baslangic ortada. Kod: right, right, down. Son konum nasil degisir?",
-    options: ["2 saga, 1 asagi", "2 sola, 1 asagi", "2 saga, 1 yukari", "1 saga, 2 asagi"],
-    answer: 0
-  },
-  {
-    type: "Dogru kodu sec",
-    text: "Engel solda. Hedef saga dogru. En guvenli ilk komut hangisi?",
-    options: ["left", "right", "up", "down"],
-    answer: 1
-  }
-];
+const duelQuestionBank = {
+  seq: [
+    {
+      type: "Hedef Bulma",
+      text: "Robotun bir kare yukari, sonra bir kare saga gitmesi icin hangi kod dogru?",
+      options: ["up, right", "right, up", "up, up", "left, right"],
+      answer: 0
+    },
+    {
+      type: "Hedef Bulma",
+      text: "Hedef soldaysa ilk adim ne olmali?",
+      options: ["left", "right", "up", "down"],
+      answer: 0
+    }
+  ],
+  order: [
+    {
+      type: "Siralama",
+      text: "Dis fircalama icin dogru sira hangisi?",
+      options: [
+        "Muslugu ac -> Macun sur -> Fircala -> Calkala",
+        "Macun sur -> Muslugu ac -> Calkala -> Fircala",
+        "Fircala -> Macun sur -> Muslugu ac -> Calkala",
+        "Calkala -> Muslugu ac -> Fircala -> Macun sur"
+      ],
+      answer: 0
+    },
+    {
+      type: "Siralama",
+      text: "Sandwich yaparken ilk adim hangisi olmali?",
+      options: ["2 dilim ekmek al", "Bicagi recelin icine daldir", "Ekmegi birlestir", "Recel sur"],
+      answer: 0
+    }
+  ],
+  debug: [
+    {
+      type: "Hata Avcisi",
+      text: "Kod: up, up, left. Hedef yukarida sagda. Hangi adim hatali?",
+      options: ["1. adim", "2. adim", "3. adim", "Hata yok"],
+      answer: 2
+    },
+    {
+      type: "Hata Avcisi",
+      text: "Kod: right, down, down. Hedef sagda bir kare. Hata nerde?",
+      options: ["1. adim", "2. adim", "3. adim", "Kod dogru"],
+      answer: 1
+    }
+  ],
+  loop: [
+    {
+      type: "Dongu",
+      text: "up, up, up, up kodunu en kisa nasil yazariz?",
+      options: ["up + repeat3", "repeat2 + up", "up, right, repeat2", "repeat2 + right"],
+      answer: 0
+    },
+    {
+      type: "Dongu",
+      text: "right, right, right kodu icin en uygun secim hangisi?",
+      options: ["right + repeat2", "repeat3 + right", "right + right + up", "repeat2 + up"],
+      answer: 0
+    }
+  ]
+};
 
 const state = {
   mode: "pre",
@@ -111,7 +137,9 @@ const state = {
     right: 0,
     winner: "",
     current: null,
-    locked: false
+    locked: false,
+    lastCategory: "",
+    matchToken: 0
   }
 };
 
@@ -164,7 +192,11 @@ const dom = {
   duelRightScore: document.getElementById("duelRightScore"),
   duelNeed: document.getElementById("duelNeed"),
   ropeMarker: document.getElementById("ropeMarker"),
-  duelNewBtn: document.getElementById("duelNewBtn")
+  duelNewBtn: document.getElementById("duelNewBtn"),
+  duelLeftKid: document.getElementById("duelLeftKid"),
+  duelRightKid: document.getElementById("duelRightKid"),
+  duelOverlay: document.getElementById("duelOverlay"),
+  duelConfetti: document.getElementById("duelConfetti")
 };
 
 const ctx = dom.scene.getContext("2d");
@@ -287,7 +319,7 @@ function updateGameHint() {
     return;
   }
   if (state.game === "duel") {
-    dom.gameHint.textContent = "Kapisma: Ilk dogru cevap veren ipi kendi tarafina ceker.";
+    dom.gameHint.textContent = "Kapisma: Sorular hedef bulma, dongu, siralama ve hata avcisindan karisik gelir.";
     dom.levelTitle.textContent = "Kod Kapismasi";
     dom.levelGoal.textContent = "Hiz ve dogrulukla 3 fark yakala.";
     if (dom.gameHow) dom.gameHow.textContent = "Iki ogrenci ayni soruyu kendi tarafindan cevaplar. Dogru cevap ipi bir adim ceker.";
@@ -305,6 +337,7 @@ function toggleGameLayout() {
   if (dom.gridGameArea) dom.gridGameArea.classList.toggle("hidden", showOrder || showDuel);
   if (dom.orderGameArea) dom.orderGameArea.classList.toggle("hidden", !showOrder);
   if (dom.duelGameArea) dom.duelGameArea.classList.toggle("hidden", !showDuel);
+  if (!showDuel && dom.duelOverlay) dom.duelOverlay.classList.add("hidden");
 }
 
 function seedOrderScenario() {
@@ -428,11 +461,19 @@ function seedDuelMatch() {
   state.duel.right = 0;
   state.duel.winner = "";
   state.duel.locked = false;
+  state.duel.lastCategory = "";
+  state.duel.matchToken++;
   state.duel.current = randomDuelQuestion();
+  startDuelIntro();
 }
 
 function randomDuelQuestion() {
-  return duelQuestions[Math.floor(Math.random() * duelQuestions.length)];
+  const categories = Object.keys(duelQuestionBank);
+  const options = categories.filter((key) => key !== state.duel.lastCategory);
+  const category = options[Math.floor(Math.random() * options.length)] || categories[0];
+  state.duel.lastCategory = category;
+  const pool = duelQuestionBank[category];
+  return pool[Math.floor(Math.random() * pool.length)];
 }
 
 function renderDuelGame() {
@@ -472,6 +513,7 @@ function onDuelAnswer(side, answerIdx) {
     if (side === "left") state.duel.left++;
     else state.duel.right++;
     dom.duelStatus.textContent = `${side === "left" ? "Sol" : "Sag"} dogru cevap verdi.`;
+    animateDuelPull(side);
   } else {
     dom.duelStatus.textContent = `${side === "left" ? "Sol" : "Sag"} yanlis cevap verdi.`;
   }
@@ -479,10 +521,13 @@ function onDuelAnswer(side, answerIdx) {
   const diff = Math.abs(state.duel.left - state.duel.right);
   if (diff >= 3) {
     state.duel.winner = state.duel.left > state.duel.right ? "Sol ogrenci" : "Sag ogrenci";
+    playDuelCelebration(state.duel.winner);
     renderDuelGame();
     return;
   }
+  const token = state.duel.matchToken;
   setTimeout(() => {
+    if (token !== state.duel.matchToken) return;
     state.duel.current = randomDuelQuestion();
     state.duel.locked = false;
     renderDuelGame();
@@ -493,10 +538,68 @@ function updateRopeMarker() {
   if (!dom.ropeMarker) return;
   const diff = state.duel.left - state.duel.right;
   const clamped = clamp(diff, -3, 3);
-  const percent = 50 + clamped * 12;
+  const percent = 50 - clamped * 12;
   dom.ropeMarker.style.left = `${percent}%`;
   dom.duelLeftScore.textContent = `Sol: ${state.duel.left}`;
   dom.duelRightScore.textContent = `Sag: ${state.duel.right}`;
+}
+
+function animateDuelPull(side) {
+  if (!dom.duelLeftKid || !dom.duelRightKid) return;
+  dom.duelLeftKid.classList.remove("pull-left");
+  dom.duelRightKid.classList.remove("pull-right");
+  if (side === "left") dom.duelLeftKid.classList.add("pull-left");
+  if (side === "right") dom.duelRightKid.classList.add("pull-right");
+  setTimeout(() => {
+    dom.duelLeftKid.classList.remove("pull-left");
+    dom.duelRightKid.classList.remove("pull-right");
+  }, 220);
+}
+
+function startDuelIntro() {
+  if (!dom.duelOverlay) return;
+  const token = state.duel.matchToken;
+  const steps = ["3", "2", "1", "Basla!"];
+  state.duel.locked = true;
+  dom.duelOverlay.classList.remove("hidden");
+  let idx = 0;
+  const tick = () => {
+    if (token !== state.duel.matchToken || state.game !== "duel") return;
+    dom.duelOverlay.textContent = steps[idx];
+    idx++;
+    if (idx < steps.length) {
+      setTimeout(tick, 420);
+    } else {
+      setTimeout(() => {
+        if (token !== state.duel.matchToken || state.game !== "duel") return;
+        dom.duelOverlay.classList.add("hidden");
+        state.duel.locked = false;
+        renderDuelGame();
+      }, 320);
+    }
+  };
+  tick();
+}
+
+function playDuelCelebration(winner) {
+  if (dom.duelOverlay) {
+    dom.duelOverlay.textContent = `Tebrikler ${winner}!`;
+    dom.duelOverlay.classList.remove("hidden");
+    setTimeout(() => {
+      if (dom.duelOverlay) dom.duelOverlay.classList.add("hidden");
+    }, 1100);
+  }
+  if (!dom.duelConfetti) return;
+  dom.duelConfetti.innerHTML = "";
+  for (let i = 0; i < 36; i++) {
+    const piece = document.createElement("div");
+    piece.className = "confetti-piece";
+    piece.style.left = `${Math.random() * 100}%`;
+    piece.style.background = ["#22c55e", "#38bdf8", "#fbbf24", "#f97316"][i % 4];
+    piece.style.animationDelay = `${Math.random() * 180}ms`;
+    dom.duelConfetti.appendChild(piece);
+    setTimeout(() => piece.remove(), 1400);
+  }
 }
 
 function renderCards() {
