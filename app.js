@@ -15,6 +15,37 @@ const cardDefs = {
   repeat3: { label: "Tekrar x3", icon: "⟲3" }
 };
 
+const orderScenarios = [
+  {
+    title: "Gorev: Sandwich hazirla",
+    steps: [
+      { id: "bread1", icon: "🍞", text: "2 dilim ekmek al" },
+      { id: "open", icon: "🫙", text: "Recelin kapagini ac" },
+      { id: "dip", icon: "🔪", text: "Bicagi recelin icine daldir" },
+      { id: "spread", icon: "🍓", text: "Ekmegin bir tarafina sur" },
+      { id: "close", icon: "🥪", text: "Ekmekleri birlestir ve ye" }
+    ]
+  },
+  {
+    title: "Gorev: Dis fircala",
+    steps: [
+      { id: "tap", icon: "🚰", text: "Muslugu ac" },
+      { id: "paste", icon: "🪥", text: "Firca ustune dis macunu sur" },
+      { id: "brush", icon: "😁", text: "Dislerini fircala" },
+      { id: "rinse", icon: "💧", text: "Agzini calkala" }
+    ]
+  },
+  {
+    title: "Gorev: Cicek sula",
+    steps: [
+      { id: "can", icon: "🪣", text: "Sulama kabini al" },
+      { id: "fill", icon: "🚿", text: "Kabini su ile doldur" },
+      { id: "walk", icon: "🚶", text: "Saksinin yanina git" },
+      { id: "pour", icon: "🌼", text: "Cicege suyu dok" }
+    ]
+  }
+];
+
 const state = {
   mode: "pre",
   game: "seq",
@@ -31,7 +62,12 @@ const state = {
   baseGrid: [],
   start: null,
   target: null,
-  history: []
+  history: [],
+  order: {
+    scenario: null,
+    mixed: [],
+    sorted: []
+  }
 };
 
 const dom = {
@@ -63,6 +99,16 @@ const dom = {
   hintBtn: document.getElementById("hintBtn"),
   solutionBtn: document.getElementById("solutionBtn"),
   historyList: document.getElementById("historyList")
+  ,
+  gridGameArea: document.getElementById("gridGameArea"),
+  orderGameArea: document.getElementById("orderGameArea"),
+  orderTaskTitle: document.getElementById("orderTaskTitle"),
+  orderMixedCards: document.getElementById("orderMixedCards"),
+  orderSortedCards: document.getElementById("orderSortedCards"),
+  orderStatus: document.getElementById("orderStatus"),
+  orderCode: document.getElementById("orderCode"),
+  orderCheckBtn: document.getElementById("orderCheckBtn"),
+  orderNewBtn: document.getElementById("orderNewBtn")
 };
 
 const ctx = dom.scene.getContext("2d");
@@ -74,7 +120,9 @@ function init() {
   setBaseUrlText();
   loadFromUrl();
   generateScenario();
+  toggleGameLayout();
   renderCards();
+  renderOrderGame();
   renderSlots();
   drawScene();
   updateShareUrl();
@@ -107,7 +155,9 @@ function bindGameChips() {
       chip.classList.add("active");
       generateScenario();
       resetRun();
+      toggleGameLayout();
       renderCards();
+      renderOrderGame();
       updateGameHint();
       updateShareUrl();
     });
@@ -144,29 +194,166 @@ function bindControls() {
   dom.closeHelp.addEventListener("click", () => dom.help.close());
   dom.hintBtn.addEventListener("click", showHint);
   dom.solutionBtn.addEventListener("click", showSuggestion);
+  if (dom.orderCheckBtn) dom.orderCheckBtn.addEventListener("click", checkOrderSolution);
+  if (dom.orderNewBtn) dom.orderNewBtn.addEventListener("click", () => {
+    seedOrderScenario();
+    renderOrderGame();
+  });
 }
 
 function updateGameHint() {
   if (!dom.gameHint) return;
   if (state.game === "seq") {
-    dom.gameHint.textContent = "Sıralama: Kartları doğru sıraya koyarak hedefe ulaş.";
+    dom.gameHint.textContent = "Siralama: Kartlari dogru siraya koyarak hedefe ulas.";
     dom.levelTitle.textContent = "Dinamik Senaryo";
-    dom.levelGoal.textContent = "Hedefe en kısa yoldan ulaş.";
-    if (dom.gameHow) dom.gameHow.textContent = "Kartları sırala, Çalıştır ile hepsini oynat, Adım ile tek tek dene.";
-  } else if (state.game === "loop") {
-    dom.gameHint.textContent = "Döngü: Tekrar kartlarıyla aynı hareketi kısalt.";
-    dom.levelTitle.textContent = "Tekrarla Kazan";
-    dom.levelGoal.textContent = "Uzun yolu tekrar kartlarıyla kısalt.";
-    if (dom.gameHow) dom.gameHow.textContent = "Aynı yönü arka arkaya yapacaksan Tekrar kartlarını kullan.";
-  } else {
-    dom.gameHint.textContent = "Debug: Hazır koddaki hatayı bul ve düzelt.";
-    dom.levelTitle.textContent = "Hata Avcısı";
-    dom.levelGoal.textContent = "Hatalı kodu düzelt ve hedefe ulaş.";
-    if (dom.gameHow) dom.gameHow.textContent = "Hazır kodu düzenle. Yanlış adımı sil veya değiştir, sonra çalıştır.";
+    dom.levelGoal.textContent = "Hedefe en kisa yoldan ulas.";
+    if (dom.gameHow) dom.gameHow.textContent = "Kartlari sirala, Calistir ile hepsini oynat, Adim ile tek tek dene.";
+    return;
   }
+  if (state.game === "loop") {
+    dom.gameHint.textContent = "Dongu: Tekrar kartlariyla ayni hareketi kisalt.";
+    dom.levelTitle.textContent = "Tekrarla Kazan";
+    dom.levelGoal.textContent = "Uzun yolu tekrar kartlariyla kisalt.";
+    if (dom.gameHow) dom.gameHow.textContent = "Ayni yonu arka arkaya yapiyorsan Tekrar kartlarini kullan.";
+    return;
+  }
+  if (state.game === "debug") {
+    dom.gameHint.textContent = "Debug: Hazir koddaki hatayi bul ve duzelt.";
+    dom.levelTitle.textContent = "Hata Avcisi";
+    dom.levelGoal.textContent = "Hatali kodu duzelt ve hedefe ulas.";
+    if (dom.gameHow) dom.gameHow.textContent = "Hazir kodu duzenle. Yanlis adimi sil veya degistir, sonra calistir.";
+    return;
+  }
+  dom.gameHint.textContent = "Gorselli adim kartlarini dogru siraya koy.";
+  dom.levelTitle.textContent = "Gunluk Is Siralama";
+  dom.levelGoal.textContent = "Algoritma = adim adim is.";
+  if (dom.gameHow) dom.gameHow.textContent = "Karisik kartlardan sec, siraya ekle, yukari-asagi ile yerini degistir ve kontrol et.";
+}
+
+function toggleGameLayout() {
+  const showOrder = state.game === "order";
+  if (dom.gridGameArea) dom.gridGameArea.classList.toggle("hidden", showOrder);
+  if (dom.orderGameArea) dom.orderGameArea.classList.toggle("hidden", !showOrder);
+}
+
+function seedOrderScenario() {
+  const scenario = orderScenarios[Math.floor(Math.random() * orderScenarios.length)];
+  const mixed = shuffle(scenario.steps.map((step) => ({ ...step })));
+  state.order.scenario = scenario;
+  state.order.mixed = mixed;
+  state.order.sorted = [];
+}
+
+function renderOrderGame() {
+  if (state.game !== "order") return;
+  if (!state.order.scenario) seedOrderScenario();
+  dom.orderTaskTitle.textContent = state.order.scenario.title;
+  dom.orderStatus.textContent = "Kartlari dogru siraya koy.";
+  dom.orderCode.textContent = "";
+  renderOrderMixedCards();
+  renderOrderSortedCards();
+}
+
+function renderOrderMixedCards() {
+  dom.orderMixedCards.innerHTML = "";
+  if (!state.order.mixed.length) {
+    const empty = document.createElement("div");
+    empty.className = "order-empty";
+    empty.textContent = "Tum kartlari sira alanina aktardin.";
+    dom.orderMixedCards.appendChild(empty);
+    return;
+  }
+  state.order.mixed.forEach((card, idx) => {
+    dom.orderMixedCards.appendChild(createOrderCard(card, idx, false));
+  });
+}
+
+function renderOrderSortedCards() {
+  dom.orderSortedCards.innerHTML = "";
+  if (!state.order.sorted.length) {
+    const empty = document.createElement("div");
+    empty.className = "order-empty";
+    empty.textContent = "Kart eklemek icin soldaki karisik kartlardan sec.";
+    dom.orderSortedCards.appendChild(empty);
+    return;
+  }
+  state.order.sorted.forEach((card, idx) => {
+    dom.orderSortedCards.appendChild(createOrderCard(card, idx, true));
+  });
+}
+
+function createOrderCard(card, idx, inSorted) {
+  const item = document.createElement("div");
+  item.className = "order-card";
+  const action = inSorted
+    ? `<button class="mini-btn" data-act="up" data-idx="${idx}">↑</button>
+       <button class="mini-btn" data-act="down" data-idx="${idx}">↓</button>
+       <button class="mini-btn" data-act="back" data-idx="${idx}">↶</button>`
+    : `<button class="mini-btn" data-act="add" data-idx="${idx}">Ekle</button>`;
+  item.innerHTML = `<div class="order-visual">${card.icon}</div><div class="order-text">${card.text}</div><div class="order-actions">${action}</div>`;
+  item.querySelectorAll(".mini-btn").forEach((btn) => {
+    btn.addEventListener("click", (e) => onOrderCardAction(e.target.dataset.act, Number(e.target.dataset.idx), inSorted));
+  });
+  return item;
+}
+
+function onOrderCardAction(action, idx, inSorted) {
+  if (action === "add" && !inSorted) {
+    const moved = state.order.mixed.splice(idx, 1)[0];
+    state.order.sorted.push(moved);
+  }
+  if (action === "back" && inSorted) {
+    const moved = state.order.sorted.splice(idx, 1)[0];
+    state.order.mixed.push(moved);
+  }
+  if (action === "up" && inSorted && idx > 0) {
+    const temp = state.order.sorted[idx - 1];
+    state.order.sorted[idx - 1] = state.order.sorted[idx];
+    state.order.sorted[idx] = temp;
+  }
+  if (action === "down" && inSorted && idx < state.order.sorted.length - 1) {
+    const temp = state.order.sorted[idx + 1];
+    state.order.sorted[idx + 1] = state.order.sorted[idx];
+    state.order.sorted[idx] = temp;
+  }
+  renderOrderMixedCards();
+  renderOrderSortedCards();
+}
+
+function checkOrderSolution() {
+  if (state.game !== "order" || !state.order.scenario) return;
+  const correct = state.order.scenario.steps;
+  if (state.order.sorted.length !== correct.length) {
+    dom.orderStatus.textContent = "Tum kartlar siraya eklenmeli.";
+    updateScore(0);
+    return;
+  }
+  let okCount = 0;
+  for (let i = 0; i < correct.length; i++) {
+    if (state.order.sorted[i].id === correct[i].id) okCount++;
+  }
+  const success = okCount === correct.length;
+  const score = success ? 100 : Math.round((okCount / correct.length) * 60);
+  updateScore(score);
+  dom.orderStatus.textContent = success
+    ? "Dogru sira! Algoritmayi kurdun."
+    : `Tam degil. Dogru yerdeki kart sayisi: ${okCount}/${correct.length}.`;
+  dom.orderCode.textContent = correct.map((step, i) => `${i + 1}. ${step.text}`).join("\n");
+}
+
+function shuffle(arr) {
+  const copy = arr.slice();
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = copy[i];
+    copy[i] = copy[j];
+    copy[j] = tmp;
+  }
+  return copy;
 }
 
 function renderCards() {
+  if (state.game === "order") return;
   dom.cardTray.innerHTML = "";
   const cards = getAvailableCards();
   if (!cards.length) {
@@ -186,6 +373,7 @@ function renderCards() {
 }
 
 function getAvailableCards() {
+  if (state.game === "order") return [];
   if (state.game === "loop") {
     const base = ["up", "right", "repeat2"];
     if (state.mode === "m34") return [...base, "repeat3"];
@@ -249,6 +437,10 @@ function getSlotLimit() {
 
 function generateScenario() {
   const size = state.gridSize;
+  if (state.game === "order") {
+    seedOrderScenario();
+    return;
+  }
 
   if (state.game === "loop") {
     const grid = Array.from({ length: size }, () => Array(size).fill("."));
@@ -377,6 +569,11 @@ function hasPath(grid, start, target) {
 }
 
 function resetRun() {
+  if (state.game === "order") {
+    updateScore(0);
+    renderOrderGame();
+    return;
+  }
   if (state.game !== "debug") {
     state.program = [];
   }
@@ -412,6 +609,7 @@ function expandProgram() {
 }
 
 function runProgram(auto) {
+  if (state.game === "order") return;
   if (state.program.length === 0) {
     dom.status.textContent = "Önce kartları ekleyin.";
     return;
@@ -606,6 +804,10 @@ function toggleFullscreen() {
 }
 
 function showHint() {
+  if (state.game === "order") {
+    dom.orderStatus.textContent = "Ipucu: Once islem baslangici, sonra uygulama, en son bitis adimi gelir.";
+    return;
+  }
   if (state.game === "loop") {
     dom.status.textContent = "İpucu: Aynı yönü tekrar ediyorsan Tekrar kartını kullan.";
   } else if (state.game === "debug") {
@@ -616,6 +818,13 @@ function showHint() {
 }
 
 function showSuggestion() {
+  if (state.game === "order") {
+    if (state.order.scenario) {
+      dom.orderCode.textContent = state.order.scenario.steps.map((step, i) => `${i + 1}. ${step.text}`).join("\n");
+      dom.orderStatus.textContent = "Ornek dogru sirayi asagida gordun.";
+    }
+    return;
+  }
   if (state.game === "loop") {
     dom.status.textContent = "Öneri: 3x yukarı veya 3x sağ gibi tekrarları kısalt.";
   } else if (state.game === "debug") {
@@ -687,7 +896,7 @@ function loadFromUrl() {
   if (size) state.gridSize = size;
   if (diff) state.difficulty = diff;
   if (mode && modeConfig[mode]) state.mode = mode;
-  if (game && ["seq", "loop", "debug"].includes(game)) state.game = game;
+  if (game && ["seq", "loop", "debug", "order"].includes(game)) state.game = game;
   dom.gridSize.value = String(state.gridSize);
   dom.difficulty.value = state.difficulty;
   document.querySelectorAll(".mode-chip").forEach((c) => c.classList.remove("active"));

@@ -42,6 +42,7 @@
               <button class="chip game-chip" data-game="seq">🧭 Yol Bulma</button>
               <button class="chip game-chip" data-game="loop">🔁 Tekrarla Kazan</button>
               <button class="chip game-chip" data-game="debug">🐞 Hata Avcısı</button>
+              <button class="chip game-chip" data-game="order">🧩 Sirala</button>
             </div>
             <div class="hint" id="gameHint"></div>
           </div>
@@ -110,6 +111,7 @@
           </div>
         </div>
 
+        <div id="gridGameArea">
         <div class="workspace">
           <div class="cards">
             <div class="section-title">Kartlar</div>
@@ -140,6 +142,32 @@
           <div class="section-title">Son Oynananlar</div>
           <ul id="historyList" class="history-list"></ul>
         </div>
+        </div>
+
+        <section id="orderGameArea" class="order-game hidden">
+          <div class="order-head">
+            <div id="orderTaskTitle" class="order-title">Gorev: Siraya koy</div>
+            <div class="row">
+              <button id="orderNewBtn" class="btn ghost">Yeni Gorev</button>
+              <button id="orderCheckBtn" class="btn">Kontrol Et</button>
+            </div>
+          </div>
+          <div class="order-panels">
+            <div class="order-panel">
+              <div class="section-title">Karisik Kartlar</div>
+              <div id="orderMixedCards" class="order-cards"></div>
+            </div>
+            <div class="order-panel">
+              <div class="section-title">Senin Siran</div>
+              <div id="orderSortedCards" class="order-cards"></div>
+            </div>
+          </div>
+          <div id="orderStatus" class="status">Kartlari dogru siraya koy.</div>
+          <div class="card">
+            <div class="card-title">Kod Karsiligi</div>
+            <pre id="orderCode" class="mono"></pre>
+          </div>
+        </section>
       </section>
     </main>
   </div>
